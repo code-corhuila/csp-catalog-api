@@ -22,3 +22,8 @@ introduces it.
   `CorrelationIdFilter` (a UUID `X-Correlation-Id` is kept, anything else is replaced, and the id is in the log
   as `traceId`) and `ApiExceptionHandler`, the only place that turns a domain or infrastructure error into
   400, 404, 409, 422, 503 or 500. The service answers under the base path `/api/v1/catalog`.
+- JWT authentication and permissions of the catalog API (HU-CATALOG-001): `JwtAuthenticationFilter` validates the
+  bearer token by itself (RS256, `exp`, `sub` the id of a user, `permissions`), answers 401 or 403 with the error
+  envelope, opens only `/health`, `/health/ready` and `/billboard`, requires `catalog:write` on every route under
+  `/movies` and forbids any route without a rule. `JwtKeyConfiguration` reads the public key from `JWT_PUBLIC_KEY`
+  or `JWT_PUBLIC_KEY_FILE`.
