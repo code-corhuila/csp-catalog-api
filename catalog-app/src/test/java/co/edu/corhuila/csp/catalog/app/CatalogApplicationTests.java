@@ -8,7 +8,7 @@ import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.context.ApplicationContext;
 
 @SpringBootTest(webEnvironment = SpringBootTest.WebEnvironment.RANDOM_PORT)
-class CatalogApplicationTests {
+class CatalogApplicationTests extends ApplicationContextTest {
 
     @Autowired
     private ApplicationContext context;
