@@ -12,7 +12,7 @@
 
   <artifactId>catalog-adapters</artifactId>
 
-  <!-- The web dependencies are added by the Pull Request that introduces the HTTP adapter. -->
+  <!-- The validation and JWT dependencies are added by the Pull Requests that need them. -->
   <dependencies>
     <dependency>
       <groupId>co.edu.corhuila.csp</groupId>
@@ -21,11 +21,15 @@
     </dependency>
     <dependency>
       <groupId>org.springframework.boot</groupId>
+      <artifactId>spring-boot-starter-web</artifactId>
+    </dependency>
+    <dependency>
+      <groupId>org.springframework.boot</groupId>
       <artifactId>spring-boot-starter-data-mongodb</artifactId>
     </dependency>
     <dependency>
-      <groupId>org.junit.jupiter</groupId>
-      <artifactId>junit-jupiter</artifactId>
+      <groupId>org.springframework.boot</groupId>
+      <artifactId>spring-boot-starter-test</artifactId>
       <scope>test</scope>
     </dependency>
   </dependencies>
