@@ -3,6 +3,10 @@ spring:
     name: catalog-api
   lifecycle:
     timeout-per-shutdown-phase: 20s   # graceful shutdown: in-flight requests may finish for 20 s
+  data:
+    mongodb:
+      # One database per domain (Annex J.5). The URI comes from the environment; see .env.example.
+      uri: ${MONGODB_URI:mongodb://localhost:27017/catalog_db?replicaSet=rs0}
 server:
   port: ${PORT:8082}
   shutdown: graceful                  # stop accepting new requests, let the running ones finish
@@ -11,7 +15,14 @@ server:
     keep-alive-timeout: 60s           # idle connection
     threads:
       max: 200
-# The database settings and their limits are declared here by the persistence Pull Request.
+# Explicit limits of the MongoDB client (Norma 5.3.10); MongoClientLimitsConfiguration applies them.
+catalog:
+  mongodb:
+    max-pool-size: 10                 # size of the connection pool
+    connection-wait: 5s               # wait for a connection of the pool
+    connect-timeout: 5s               # time to open a connection
+    server-selection-timeout: 5s      # time to find a node of the replica set
+    read-timeout: 5s                  # time of a read or a write on the wire
 logging:
   structured:
     format:
