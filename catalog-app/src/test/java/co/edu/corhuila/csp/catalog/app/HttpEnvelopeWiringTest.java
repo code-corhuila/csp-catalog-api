@@ -63,7 +63,8 @@ class HttpEnvelopeWiringTest extends ApplicationContextTest {
 
     @Test
     void aTokenWithTheWritePermissionPassesTheSecurityAndMeetsTheRoutesOfTheService() throws Exception {
-        assertEnvelope(get(MOVIE, RsaTestKey.token(List.of("catalog:write"))), HttpStatus.NOT_FOUND, "NOT_FOUND");
+        assertEnvelope(get("/movies/not-an-id", RsaTestKey.token(List.of("catalog:write"))), HttpStatus.BAD_REQUEST,
+                "VALIDATION_ERROR");
     }
 
     @Test

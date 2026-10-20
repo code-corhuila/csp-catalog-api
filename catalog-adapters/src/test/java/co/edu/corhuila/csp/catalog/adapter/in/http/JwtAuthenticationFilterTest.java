@@ -115,6 +115,22 @@ class JwtAuthenticationFilterTest {
     }
 
     @Test
+    void theRouteIsTheOneTheContainerNormalizedWhateverWayItSplitsItInServletPathAndPathInfo() throws Exception {
+        MockHttpServletRequest request = new MockHttpServletRequest("GET", "/api/v1/catalog/movies");
+        request.setContextPath("/api/v1/catalog");
+        request.setServletPath("");
+        request.setPathInfo("/movies");
+        request.addHeader("Authorization", "Bearer " + TestTokens.valid(READER));
+        MockHttpServletResponse response = new MockHttpServletResponse();
+        MockFilterChain chain = new MockFilterChain();
+
+        filter.doFilter(request, response, chain);
+
+        assertEquals(403, response.getStatus());
+        assertFalse(chain.getRequest() != null);
+    }
+
+    @Test
     void theHealthAndBillboardRoutesNeedNoToken() throws Exception {
         assertTrue(call("GET", "/health", null).chained());
         assertTrue(call("GET", "/health/ready", null).chained());
