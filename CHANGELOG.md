@@ -27,3 +27,9 @@ introduces it.
   envelope, opens only `/health`, `/health/ready` and `/billboard`, requires `catalog:write` on every route under
   `/movies` and forbids any route without a rule. `JwtKeyConfiguration` reads the public key from `JWT_PUBLIC_KEY`
   or `JWT_PUBLIC_KEY_FILE`.
+- Movie routes of the catalog API (HU-CATALOG-001, ADR-037, DEC-004): `POST /movies` (201 with `Location`),
+  `GET /movies` (page, limit and the pagination metadata), `GET /movies/{movieId}`, `PATCH /movies/{movieId}` and
+  `DELETE /movies/{movieId}` (archives), with the DTOs of the contract and the `Idempotency-Key` required on the
+  writes. `UseCaseConfiguration` wires the use cases to the MongoDB repository. The routes are validated, request
+  and answer, against `catalog-service.yaml` through the real stack, and the security filter reads the route from
+  the servlet path and the path info.
