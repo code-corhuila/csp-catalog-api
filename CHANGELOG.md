@@ -14,3 +14,7 @@ introduces it.
   output ports `MovieRepository` and `IdGenerator`, and `MovieService`, which replays a write by its
   `Idempotency-Key` before the rules of the current state are evaluated, so repeating an archive does not fail
   with an invalid transition.
+- MongoDB persistence of the movies (HU-CATALOG-001, ADR-037): `MongoMovieRepository` writes the movie and its
+  `idempotency_key` in one transaction, replays a concurrent write of the same key, lists the movies that are not
+  archived newest first and guards the window of the list; `MovieDocumentMapper` writes the documents the validator
+  of `csp-catalog-db` expects. The limits of the MongoDB client are declared in `application.yml`.
