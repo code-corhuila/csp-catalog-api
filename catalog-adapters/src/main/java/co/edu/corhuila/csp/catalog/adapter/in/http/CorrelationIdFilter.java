@@ -26,7 +26,8 @@ public class CorrelationIdFilter extends OncePerRequestFilter {
     public static final String CORRELATION_HEADER = "X-Correlation-Id";
     public static final String TRACE_ID_MDC_KEY = "traceId";
 
-    private static final Pattern UUID_PATTERN =
+    /** The canonical text of a UUID: the filter keeps it and the token filter requires it of a subject. */
+    static final Pattern UUID_PATTERN =
             Pattern.compile("[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}");
 
     @Override
