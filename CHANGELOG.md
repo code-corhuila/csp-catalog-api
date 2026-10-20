@@ -18,3 +18,7 @@ introduces it.
   `idempotency_key` in one transaction, replays a concurrent write of the same key, lists the movies that are not
   archived newest first and guards the window of the list; `MovieDocumentMapper` writes the documents the validator
   of `csp-catalog-db` expects. The limits of the MongoDB client are declared in `application.yml`.
+- HTTP error envelope of the catalog API (HU-CATALOG-001): `ErrorResponse` (`error`, `message`, `traceId`),
+  `CorrelationIdFilter` (a UUID `X-Correlation-Id` is kept, anything else is replaced, and the id is in the log
+  as `traceId`) and `ApiExceptionHandler`, the only place that turns a domain or infrastructure error into
+  400, 404, 409, 422, 503 or 500. The service answers under the base path `/api/v1/catalog`.
