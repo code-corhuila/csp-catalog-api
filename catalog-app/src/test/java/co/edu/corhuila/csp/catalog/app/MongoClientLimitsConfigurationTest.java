@@ -12,7 +12,7 @@ import org.springframework.core.env.Environment;
 
 /** The limits of the MongoDB client are declared, and they reach the client settings (Norma 5.3.10). */
 @SpringBootTest(webEnvironment = SpringBootTest.WebEnvironment.NONE)
-class MongoClientLimitsConfigurationTest {
+class MongoClientLimitsConfigurationTest extends ApplicationContextTest {
 
     @Autowired
     private Environment environment;
