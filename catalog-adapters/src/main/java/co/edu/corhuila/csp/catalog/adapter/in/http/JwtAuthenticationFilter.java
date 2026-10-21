@@ -22,6 +22,7 @@ import java.util.Set;
 import java.util.regex.Pattern;
 import org.springframework.core.Ordered;
 import org.springframework.core.annotation.Order;
+import org.springframework.http.HttpMethod;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.stereotype.Component;
@@ -35,7 +36,7 @@ import org.springframework.web.filter.OncePerRequestFilter;
  * permission of the route is a 403. Both answer the error envelope and never echo the token.
  *
  * <p>The routes are closed unless a rule opens them: the public ones are those the contract declares with
- * {@code security: []}, every route under {@code /movies}, reads included, needs {@code catalog:write}, every
+ * {@code security: []} (the health checks and {@code GET /billboard}, whatever token it carries), every route under {@code /movies}, reads included, needs {@code catalog:write}, every
  * route under {@code /rooms} needs {@code room:write}, every route under {@code /showtimes} needs
  * {@code showtime:write} except the availability of a showtime, which is the service-to-service route of
  * HU-CATALOG-005 and stays forbidden here, and a route with no rule is forbidden, so a route added later cannot
@@ -49,7 +50,9 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
     public static final String USER_ID_ATTRIBUTE = "userId";
 
     private static final String BEARER = "Bearer ";
-    private static final Set<String> PUBLIC_PATHS = Set.of("/health", "/health/ready", "/billboard");
+    private static final Set<String> PUBLIC_PATHS = Set.of("/health", "/health/ready");
+    /** The one public read of the contract besides the health checks: no token is needed and a sent one is ignored. */
+    private static final String PUBLIC_BILLBOARD = "/billboard";
     /** The permission that every route under a prefix needs: the routes of a resource and nothing else. */
     private static final Map<String, String> PERMISSION_BY_ROUTE =
             Map.of("/movies", "catalog:write", "/rooms", "room:write", "/showtimes", "showtime:write");
@@ -72,7 +75,7 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
             throws ServletException, IOException {
         // The servlet path and the path info are what the container normalized; the raw request URI is not.
         String path = request.getServletPath() + (request.getPathInfo() == null ? "" : request.getPathInfo());
-        if (PUBLIC_PATHS.contains(path)) {
+        if (PUBLIC_PATHS.contains(path) || isPublicBillboardRead(request, path)) {
             chain.doFilter(request, response);
             return;
         }
@@ -92,6 +95,10 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
         }
         request.setAttribute(USER_ID_ATTRIBUTE, caller.get().userId());
         chain.doFilter(request, response);
+    }
+
+    private static boolean isPublicBillboardRead(HttpServletRequest request, String path) {
+        return PUBLIC_BILLBOARD.equals(path) && HttpMethod.GET.matches(request.getMethod());
     }
 
     private static boolean isAllowed(String path, List<String> permissions) {
