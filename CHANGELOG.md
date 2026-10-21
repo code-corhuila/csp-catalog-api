@@ -6,6 +6,11 @@ introduces it.
 ## [Unreleased]
 
 ### Added
+- MongoDB persistence of the showtimes (HU-CATALOG-003, ADR-039): `MongoShowtimeRepository` writes the showtime, its
+  `idempotency_key` and, for a creation, the `ShowtimePublished` event in `outbox_event` in one transaction. The
+  transaction first increments `schedule_version` of the room, so concurrent schedulers of one room conflict and the
+  loser fails the `ShowtimeOverlapService` check against the showtime of the winner; `ShowtimeDocumentMapper` builds the
+  documents that pass the validators of `csp-catalog-db`.
 - Showtime ports and use cases of `catalog-core` (HU-CATALOG-003, ADR-039): the input port `ShowtimeUseCases` with its
   inputs, the output port `ShowtimeRepository` with `ShowtimeWrite` and `ShowtimePage`, and `ShowtimeService`, which
   replays by key first, validates the movie and the room, asks for the overlap check only when a scheduled showtime
