@@ -6,6 +6,10 @@ introduces it.
 ## [Unreleased]
 
 ### Added
+- Billboard use case of `catalog-core` (HU-CATALOG-004, ADR-041): the input port `BillboardUseCases` with 
+  `BillboardQuery`, the output port `BillboardReader` with the read model `BillboardPage`, `BillboardEntry`, 
+  `BillboardMovie`, `BillboardRoom` and `BillboardShowtime`, and `BillboardService`, which asks the reader for the 
+  upcoming showtimes as of the clock instant in milliseconds.
 - Showtime routes (HU-CATALOG-003, ADR-039): `ShowtimeController` serves `POST`, `GET`, `PATCH` and `DELETE` on
   `/showtimes` and `/showtimes/{showtimeId}` with the DTOs of `catalog-service.yaml`, the `Idempotency-Key` bounds and
   the errors of the contract (400, 404, the 409 of an overlap and the 422 of a movie or room that cannot be used).
