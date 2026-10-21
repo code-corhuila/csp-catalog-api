@@ -6,6 +6,12 @@ introduces it.
 ## [Unreleased]
 
 ### Added
+- MongoDB persistence of the rooms (HU-CATALOG-002, ADR-038): `MongoRoomRepository` writes the room and its
+  `idempotency_key` in one transaction, answers a name already in use from the unique index `idx_rooms_name` with
+  `RoomNameAlreadyInUseException` and writes nothing, lists the rooms that are not archived newest first and guards
+  the window of the list; `RoomDocumentMapper` writes the documents the validator of `csp-catalog-db` expects. The
+  key lookup, the key insert and the retry of a concurrent write of the same key are now shared with the movies in
+  `IdempotentMongoWrites`.
 - Room ports and use cases of `catalog-core` (HU-CATALOG-002, ADR-038): the input port `RoomUseCases`, the output 
   ports `RoomRepository` and `RoomNameAlreadyInUseException`, and `RoomService`, which replays a write by its 
   `Idempotency-Key` before the rules of the current state are evaluated, rejects a declared capacity that differs 
