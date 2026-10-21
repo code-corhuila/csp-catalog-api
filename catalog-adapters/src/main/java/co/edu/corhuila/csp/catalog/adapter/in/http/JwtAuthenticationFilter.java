@@ -16,6 +16,7 @@ import java.security.interfaces.RSAPublicKey;
 import java.text.ParseException;
 import java.util.Date;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
 import org.springframework.core.Ordered;
@@ -33,8 +34,9 @@ import org.springframework.web.filter.OncePerRequestFilter;
  * permission of the route is a 403. Both answer the error envelope and never echo the token.
  *
  * <p>The routes are closed unless a rule opens them: the public ones are those the contract declares with
- * {@code security: []}, every route under {@code /movies}, reads included, needs {@code catalog:write}, and
- * a route with no rule is forbidden, so a route added later cannot be open by omission.
+ * {@code security: []}, every route under {@code /movies}, reads included, needs {@code catalog:write}, every
+ * route under {@code /rooms} needs {@code room:write}, and a route with no rule is forbidden, so a route added
+ * later cannot be open by omission.
  */
 @Component
 @Order(Ordered.HIGHEST_PRECEDENCE + 1)
@@ -45,8 +47,9 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
 
     private static final String BEARER = "Bearer ";
     private static final Set<String> PUBLIC_PATHS = Set.of("/health", "/health/ready", "/billboard");
-    private static final String MOVIES = "/movies";
-    private static final String WRITE_PERMISSION = "catalog:write";
+    /** The permission that every route under a prefix needs: the routes of a resource and nothing else. */
+    private static final Map<String, String> PERMISSION_BY_ROUTE =
+            Map.of("/movies", "catalog:write", "/rooms", "room:write");
 
     private final RSAPublicKey publicKey;
     private final ObjectMapper objectMapper;
@@ -87,8 +90,12 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
     }
 
     private static boolean isAllowed(String path, List<String> permissions) {
-        boolean movies = path.equals(MOVIES) || path.startsWith(MOVIES + "/");
-        return movies && permissions.contains(WRITE_PERMISSION);
+        return PERMISSION_BY_ROUTE.entrySet().stream()
+                .anyMatch(rule -> isUnder(path, rule.getKey()) && permissions.contains(rule.getValue()));
+    }
+
+    private static boolean isUnder(String path, String route) {
+        return path.equals(route) || path.startsWith(route + "/");
     }
 
     /** The caller of an acceptable token; empty when any rule of 5.3.7 is broken. */
