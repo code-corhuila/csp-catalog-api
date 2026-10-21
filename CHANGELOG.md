@@ -10,6 +10,10 @@ introduces it.
 HU-CATALOG-001, HU-CATALOG-002 and the base scaffold of the service promoted from `qa` to `main`.
 
 ### Added
+- Showtime domain of `catalog-core` (HU-CATALOG-003, ADR-039): the `Showtime` aggregate with its half-open
+  `TimeInterval`, the `SCHEDULED`, `CANCELLED` and `COMPLETED` lifecycle, snapshots of the movie title and the room
+  name, scheduling only for a published movie and an active room, partial changes, cancellation, the
+  `ShowtimePublished` event, the `ShowtimeOverlapService` rule and the typed domain errors.
 - Room routes (HU-CATALOG-002, ADR-038): `RoomController` serves `POST`, `GET`, `PATCH` and `DELETE` on `/rooms`
   and `/rooms/{roomId}` with the DTOs of `catalog-service.yaml`, the `Idempotency-Key` bounds and the errors of the
   contract (400, 404 and the 409 of a name in use). The security filter now maps each route prefix to its permission:
