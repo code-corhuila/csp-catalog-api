@@ -28,6 +28,8 @@ class JwtAuthenticationFilterTest {
     private static final String TRACE = "550e8400-e29b-41d4-a716-446655440000";
     private static final List<String> WRITER = List.of("catalog:read", "catalog:write");
     private static final List<String> READER = List.of("catalog:read");
+    private static final List<String> CATALOG_WRITER = List.of("catalog:write");
+    private static final List<String> ROOM_WRITER = List.of("room:write");
 
     private final ObjectMapper json = new ObjectMapper();
     private final JwtAuthenticationFilter filter = new JwtAuthenticationFilter(TestTokens.publicKey(), json);
@@ -93,6 +95,23 @@ class JwtAuthenticationFilterTest {
         assertRejected(call("PATCH", path, "Bearer " + TestTokens.valid(READER)), 403, "FORBIDDEN");
     }
 
+    @ParameterizedTest
+    @ValueSource(strings = {"/rooms", "/rooms/", "/rooms/22222222-2222-4222-8222-222222222222"})
+    void everyRouteOfTheRoomsNeedsTheRoomWritePermissionAndNoOtherOne(String path) throws Exception {
+        assertTrue(call("GET", path, "Bearer " + TestTokens.valid(ROOM_WRITER)).chained());
+        assertTrue(call("PATCH", path, "Bearer " + TestTokens.valid(ROOM_WRITER)).chained());
+        assertRejected(call("GET", path, "Bearer " + TestTokens.valid(CATALOG_WRITER)), 403, "FORBIDDEN");
+        assertRejected(call("PATCH", path, "Bearer " + TestTokens.valid(CATALOG_WRITER)), 403, "FORBIDDEN");
+        assertRejected(call("GET", path, "Bearer " + TestTokens.valid(READER)), 403, "FORBIDDEN");
+    }
+
+    @Test
+    void theRoomPermissionDoesNotOpenTheMoviesAndTheMoviePermissionDoesNotOpenTheRooms() throws Exception {
+        assertRejected(post("/movies", TestTokens.valid(ROOM_WRITER)), 403, "FORBIDDEN");
+        assertRejected(post("/rooms", TestTokens.valid(CATALOG_WRITER)), 403, "FORBIDDEN");
+        assertTrue(post("/rooms", TestTokens.valid(List.of("catalog:write", "room:write"))).chained());
+    }
+
     @Test
     void aValidTokenWithoutThePermissionIsForbiddenWithTheEnvelope() throws Exception {
         Outcome outcome = post("/movies", TestTokens.valid(READER));
@@ -109,8 +128,9 @@ class JwtAuthenticationFilterTest {
 
     @Test
     void aRouteWithoutARuleIsForbiddenSoANewRouteCannotBeOpenByOmission() throws Exception {
-        assertRejected(post("/rooms", TestTokens.valid(WRITER)), 403, "FORBIDDEN");
+        assertRejected(post("/showtimes", TestTokens.valid(WRITER)), 403, "FORBIDDEN");
         assertRejected(post("/moviesx", TestTokens.valid(WRITER)), 403, "FORBIDDEN");
+        assertRejected(post("/roomsx", TestTokens.valid(ROOM_WRITER)), 403, "FORBIDDEN");
         assertRejected(post("/nothing", TestTokens.valid(WRITER)), 403, "FORBIDDEN");
     }
 
