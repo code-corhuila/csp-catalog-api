@@ -10,6 +10,10 @@ introduces it.
 HU-CATALOG-001, HU-CATALOG-002, HU-CATALOG-003 and the base scaffold of the service promoted from `qa` to `main`.
 
 ### Added
+- MongoDB billboard reader (HU-CATALOG-004, ADR-041): `MongoBillboardReader` implements `BillboardReader` with one 
+  aggregation on `showtimes` that keeps the scheduled, not yet ended showtimes of a published, not archived movie 
+  in a not archived room, filters by UTC start day and movie, orders by start and id, and returns the window with 
+  its total.
 - Billboard use case of `catalog-core` (HU-CATALOG-004, ADR-041): the input port `BillboardUseCases` with 
   `BillboardQuery`, the output port `BillboardReader` with the read model `BillboardPage`, `BillboardEntry`, 
   `BillboardMovie`, `BillboardRoom` and `BillboardShowtime`, and `BillboardService`, which asks the reader for the 
