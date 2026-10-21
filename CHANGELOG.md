@@ -10,6 +10,10 @@ introduces it.
 HU-CATALOG-001 and the base scaffold of the service promoted from `qa` to `main`.
 
 ### Added
+- Room domain of `catalog-core` (HU-CATALOG-002): the `Room` aggregate with its `RoomDetails` and `Seat` layout, 
+  the invariants of the data model (name of at most 100 characters, 1 to 500 seats, unique seat labels, optional 
+  row and number, `STANDARD`, `VIP` and `ACCESSIBLE` seat types), partial changes, archiving that never removes the 
+  room and the typed domain errors.
 - Movie domain of `catalog-core` (HU-CATALOG-001, ADR-037): the `Movie` aggregate and its `MovieDetails`
   with the invariants of the data model (title, duration of at least one minute, classification, at most 20
   genres and 50 cast members, http poster), the publication lifecycle (`DRAFT`, `PUBLISHED`, `ARCHIVED`, with
