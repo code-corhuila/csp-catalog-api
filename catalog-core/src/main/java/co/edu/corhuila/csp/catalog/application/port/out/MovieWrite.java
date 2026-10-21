@@ -7,7 +7,7 @@ import java.util.Objects;
  * Everything the durable side needs for one movie write: the movie in its new state, the key that
  * makes the call repeatable (Norma 5.3.8) and the hash that tells a replay from another request.
  */
-public record MovieWrite(Movie movie, MovieOperation operation, String idempotencyKey, String requestHash) {
+public record MovieWrite(Movie movie, WriteOperation operation, String idempotencyKey, String requestHash) {
 
     public MovieWrite {
         Objects.requireNonNull(movie, "the movie is required");
