@@ -6,6 +6,10 @@ introduces it.
 ## [Unreleased]
 
 ### Added
+- Availability use case of `catalog-core` (HU-CATALOG-005, ADR-042): the input port `AvailabilityUseCases` and
+  `AvailabilityService` answer the `ShowtimeAvailability` read model of a scheduled showtime of a published movie in an
+  active room, with the snapshots of the showtime and the seat labels of the current layout. Any other case is a
+  `ShowtimeNotFoundException`; the use case only reads.
 - Public billboard route (HU-CATALOG-004, ADR-041): `BillboardController` serves `GET /billboard` with the `date`,
   `movieId`, `page` and `limit` parameters and the `BillboardItem` DTOs of `catalog-service.yaml`, and a malformed
   parameter is a 400. The security filter opens only `GET /billboard` and ignores any token sent to it; every other
