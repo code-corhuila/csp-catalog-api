@@ -30,6 +30,7 @@ class JwtAuthenticationFilterTest {
     private static final List<String> READER = List.of("catalog:read");
     private static final List<String> CATALOG_WRITER = List.of("catalog:write");
     private static final List<String> ROOM_WRITER = List.of("room:write");
+    private static final List<String> SHOWTIME_WRITER = List.of("showtime:write");
 
     private final ObjectMapper json = new ObjectMapper();
     private final JwtAuthenticationFilter filter = new JwtAuthenticationFilter(TestTokens.publicKey(), json);
@@ -112,6 +113,33 @@ class JwtAuthenticationFilterTest {
         assertTrue(post("/rooms", TestTokens.valid(List.of("catalog:write", "room:write"))).chained());
     }
 
+    @ParameterizedTest
+    @ValueSource(strings = {"/showtimes", "/showtimes/", "/showtimes/33333333-3333-4333-8333-333333333333"})
+    void everyRouteOfTheShowtimesNeedsTheShowtimeWritePermissionAndNoOtherOne(String path) throws Exception {
+        assertTrue(call("GET", path, "Bearer " + TestTokens.valid(SHOWTIME_WRITER)).chained());
+        assertTrue(call("DELETE", path, "Bearer " + TestTokens.valid(SHOWTIME_WRITER)).chained());
+        assertRejected(call("GET", path, "Bearer " + TestTokens.valid(CATALOG_WRITER)), 403, "FORBIDDEN");
+        assertRejected(call("GET", path, "Bearer " + TestTokens.valid(ROOM_WRITER)), 403, "FORBIDDEN");
+        assertRejected(call("GET", path, "Bearer " + TestTokens.valid(READER)), 403, "FORBIDDEN");
+    }
+
+    @Test
+    void theShowtimePermissionDoesNotOpenTheMoviesOrTheRooms() throws Exception {
+        assertRejected(post("/movies", TestTokens.valid(SHOWTIME_WRITER)), 403, "FORBIDDEN");
+        assertRejected(post("/rooms", TestTokens.valid(SHOWTIME_WRITER)), 403, "FORBIDDEN");
+        assertRejected(post("/showtimes", TestTokens.valid(CATALOG_WRITER)), 403, "FORBIDDEN");
+        assertRejected(post("/showtimes", TestTokens.valid(ROOM_WRITER)), 403, "FORBIDDEN");
+    }
+
+    @Test
+    void theAvailabilityOfAShowtimeIsNotServedHereSoTheShowtimePermissionDoesNotOpenIt() throws Exception {
+        String path = "/showtimes/33333333-3333-4333-8333-333333333333/availability";
+
+        assertRejected(call("GET", path, "Bearer " + TestTokens.valid(SHOWTIME_WRITER)), 403, "FORBIDDEN");
+        assertRejected(call("GET", path, "Bearer " + TestTokens.valid(List.of("showtime:write", "catalog:write"))),
+                403, "FORBIDDEN");
+    }
+
     @Test
     void aValidTokenWithoutThePermissionIsForbiddenWithTheEnvelope() throws Exception {
         Outcome outcome = post("/movies", TestTokens.valid(READER));
@@ -128,7 +156,7 @@ class JwtAuthenticationFilterTest {
 
     @Test
     void aRouteWithoutARuleIsForbiddenSoANewRouteCannotBeOpenByOmission() throws Exception {
-        assertRejected(post("/showtimes", TestTokens.valid(WRITER)), 403, "FORBIDDEN");
+        assertRejected(post("/showtimesx", TestTokens.valid(SHOWTIME_WRITER)), 403, "FORBIDDEN");
         assertRejected(post("/moviesx", TestTokens.valid(WRITER)), 403, "FORBIDDEN");
         assertRejected(post("/roomsx", TestTokens.valid(ROOM_WRITER)), 403, "FORBIDDEN");
         assertRejected(post("/nothing", TestTokens.valid(WRITER)), 403, "FORBIDDEN");
