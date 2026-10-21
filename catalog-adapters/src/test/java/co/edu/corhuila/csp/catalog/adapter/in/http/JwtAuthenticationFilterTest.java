@@ -9,6 +9,7 @@ import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import java.util.Date;
 import java.util.List;
+import java.util.Set;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -33,7 +34,15 @@ class JwtAuthenticationFilterTest {
     private static final List<String> SHOWTIME_WRITER = List.of("showtime:write");
 
     private final ObjectMapper json = new ObjectMapper();
-    private final JwtAuthenticationFilter filter = new JwtAuthenticationFilter(TestTokens.publicKey(), json);
+    private static final String SERVICE = "booking-service";
+    private static final String AVAILABILITY = "/showtimes/33333333-3333-4333-8333-333333333333/availability";
+    private static final List<String> ADMINISTRATOR = List.of("showtime:write", "catalog:write", "room:write");
+
+    private final JwtAuthenticationFilter filter = filterFor(SERVICE);
+
+    private JwtAuthenticationFilter filterFor(String... serviceSubjects) {
+        return new JwtAuthenticationFilter(TestTokens.publicKey(), json, new ServiceSubjects(Set.of(serviceSubjects)));
+    }
 
     @BeforeEach
     void putTheTraceInTheLog() {
@@ -49,6 +58,11 @@ class JwtAuthenticationFilterTest {
     }
 
     private Outcome call(String method, String path, String authorization) throws Exception {
+        return call(filter, method, path, authorization);
+    }
+
+    private Outcome call(JwtAuthenticationFilter using, String method, String path, String authorization)
+            throws Exception {
         MockHttpServletRequest request = new MockHttpServletRequest(method, "/api/v1/catalog" + path);
         request.setContextPath("/api/v1/catalog");
         request.setServletPath(path);
@@ -57,7 +71,7 @@ class JwtAuthenticationFilterTest {
         }
         MockHttpServletResponse response = new MockHttpServletResponse();
         MockFilterChain chain = new MockFilterChain();
-        filter.doFilter(request, response, chain);
+        using.doFilter(request, response, chain);
         return new Outcome(request, response, chain.getRequest() != null);
     }
 
@@ -281,5 +295,126 @@ class JwtAuthenticationFilterTest {
 
         assertFalse(outcome.response().getContentAsString().contains(token));
         assertNull(outcome.request().getAttribute(JwtAuthenticationFilter.USER_ID_ATTRIBUTE));
+    }
+
+    private static String tokenOf(String subject, List<String> permissions) {
+        return TestTokens.rs256(TestTokens.claims(subject, permissions, TestTokens.inOneHour()).build());
+    }
+
+    private Outcome availability(String token) throws Exception {
+        return call("GET", AVAILABILITY, "Bearer " + token);
+    }
+
+    @Test
+    void aValidTokenOfAServiceSubjectOpensTheAvailabilityWhateverItsPermissions() throws Exception {
+        assertTrue(availability(tokenOf(SERVICE, List.of())).chained());
+        assertTrue(availability(tokenOf(SERVICE, SHOWTIME_WRITER)).chained());
+        assertTrue(availability(tokenOf(SERVICE, ADMINISTRATOR)).chained());
+    }
+
+    @Test
+    void aServiceCallerIsNotAUserSoNoUserIdIsSet() throws Exception {
+        assertNull(availability(tokenOf(SERVICE, List.of())).request().getAttribute(JwtAuthenticationFilter.USER_ID_ATTRIBUTE));
+    }
+
+    @Test
+    void theAvailabilityWithoutTokenIsUnauthorizedLikeEveryOtherRoute() throws Exception {
+        assertRejected(call("GET", AVAILABILITY, null), 401, "UNAUTHORIZED");
+        assertRejected(call("GET", AVAILABILITY, "Basic dXNlcjpwYXNz"), 401, "UNAUTHORIZED");
+    }
+
+    @Test
+    void aTokenThatIsNotValidIsInvalidOnTheAvailabilityEvenIfItNamesTheService() throws Exception {
+        Date exp = TestTokens.inOneHour();
+        assertRejected(availability("not-a-jwt"), 401, "INVALID_TOKEN");
+        assertRejected(availability(TestTokens.hs256(List.of())), 401, "INVALID_TOKEN");
+        assertRejected(availability(TestTokens.unsigned(List.of())), 401, "INVALID_TOKEN");
+        assertRejected(availability(tokenExpiring(SERVICE, TestTokens.anHourAgo())), 401, "INVALID_TOKEN");
+        assertRejected(availability(tokenExpiring(SERVICE, null)), 401, "INVALID_TOKEN");
+        assertRejected(availability(tokenExpiring(null, exp)), 401, "INVALID_TOKEN");
+        assertRejected(availability(tokenExpiring("  ", exp)), 401, "INVALID_TOKEN");
+    }
+
+    private static String tokenExpiring(String subject, Date expiresAt) {
+        return TestTokens.rs256(TestTokens.claims(subject, List.of(), expiresAt).build());
+    }
+
+    @Test
+    void aTokenOfAServiceSubjectSignedWithAnotherKeyIsInvalid() throws Exception {
+        String forged = TestTokens.signedByAnotherKey(TestTokens.claims(SERVICE, List.of(), TestTokens.inOneHour()).build());
+
+        assertRejected(availability(forged), 401, "INVALID_TOKEN");
+    }
+
+    @Test
+    void aValidTokenWhoseSubjectIsNotAServiceSubjectIsForbiddenWhateverItsPermissions() throws Exception {
+        assertRejected(availability(TestTokens.valid(List.of())), 403, "FORBIDDEN");
+        assertRejected(availability(TestTokens.valid(SHOWTIME_WRITER)), 403, "FORBIDDEN");
+        assertRejected(availability(TestTokens.valid(ADMINISTRATOR)), 403, "FORBIDDEN");
+        assertRejected(availability(tokenOf("payment-service", ADMINISTRATOR)), 403, "FORBIDDEN");
+        assertRejected(availability(tokenOf("Booking-Service", List.of())), 403, "FORBIDDEN");
+        assertRejected(availability(tokenOf("booking-service ", List.of())), 403, "FORBIDDEN");
+    }
+
+    @Test
+    void theForbiddenAnswerHasTheEnvelopeAndNeverEchoesTheToken() throws Exception {
+        String token = TestTokens.valid(ADMINISTRATOR);
+
+        Outcome outcome = availability(token);
+
+        assertRejected(outcome, 403, "FORBIDDEN");
+        assertEquals("You are not authorized to perform this action", body(outcome).get("message").asText());
+        assertFalse(outcome.response().getContentAsString().contains(token));
+    }
+
+    @Test
+    void theAllowListIsTheConfiguredOneAndNoOther() throws Exception {
+        JwtAuthenticationFilter two = filterFor("booking-service", "csp-worker");
+
+        assertTrue(call(two, "GET", AVAILABILITY, "Bearer " + tokenOf("booking-service", List.of())).chained());
+        assertTrue(call(two, "GET", AVAILABILITY, "Bearer " + tokenOf("csp-worker", List.of())).chained());
+        assertRejected(call(two, "GET", AVAILABILITY, "Bearer " + tokenOf("auth-service", List.of())), 403, "FORBIDDEN");
+        assertRejected(call(filterFor("csp-worker"), "GET", AVAILABILITY, "Bearer " + tokenOf(SERVICE, List.of())),
+                403, "FORBIDDEN");
+    }
+
+    @Test
+    void anEmptyAllowListOpensTheRouteToNobody() throws Exception {
+        JwtAuthenticationFilter nobody = filterFor();
+
+        assertRejected(call(nobody, "GET", AVAILABILITY, "Bearer " + tokenOf(SERVICE, List.of())), 403, "FORBIDDEN");
+        assertRejected(call(nobody, "GET", AVAILABILITY, "Bearer " + TestTokens.valid(ADMINISTRATOR)), 403, "FORBIDDEN");
+        assertRejected(call(nobody, "GET", AVAILABILITY, null), 401, "UNAUTHORIZED");
+    }
+
+    @ParameterizedTest
+    @ValueSource(strings = {"/movies", "/movies/11111111-1111-4111-8111-111111111111", "/rooms",
+            "/rooms/22222222-2222-4222-8222-222222222222", "/showtimes",
+            "/showtimes/33333333-3333-4333-8333-333333333333", "/nothing"})
+    void aServiceTokenOpensNoOtherRouteWhateverItsPermissions(String path) throws Exception {
+        for (String method : List.of("GET", "POST", "PATCH", "DELETE")) {
+            assertRejected(call(method, path, "Bearer " + tokenOf(SERVICE, List.of())), 403, "FORBIDDEN");
+            assertRejected(call(method, path, "Bearer " + tokenOf(SERVICE, ADMINISTRATOR)), 403, "FORBIDDEN");
+        }
+    }
+
+    @Test
+    void theServiceCredentialIsOnlyForTheReadOfTheExactAvailabilityRoute() throws Exception {
+        String service = "Bearer " + tokenOf(SERVICE, List.of());
+        for (String method : List.of("POST", "PUT", "PATCH", "DELETE", "HEAD")) {
+            assertRejected(call(method, AVAILABILITY, service), 403, "FORBIDDEN");
+        }
+        assertRejected(call("GET", AVAILABILITY + "x", service), 403, "FORBIDDEN");
+        assertRejected(call("GET", AVAILABILITY + "/extra", service), 403, "FORBIDDEN");
+        assertRejected(call("GET", "/showtimes/availability", service), 403, "FORBIDDEN");
+    }
+
+    @Test
+    void aServiceTokenKeepsTheBillboardAndTheHealthChecksOpenAndNothingMore() throws Exception {
+        String service = "Bearer " + tokenOf(SERVICE, List.of());
+
+        assertTrue(call("GET", "/billboard", service).chained());
+        assertTrue(call("GET", "/health", service).chained());
+        assertRejected(call("POST", "/billboard", service), 403, "FORBIDDEN");
     }
 }
