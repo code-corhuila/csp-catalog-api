@@ -1,9 +1,12 @@
 package co.edu.corhuila.csp.catalog.adapter.in.http;
 
 import co.edu.corhuila.csp.catalog.application.port.out.IdempotencyKeyConflictException;
+import co.edu.corhuila.csp.catalog.application.port.out.RoomNameAlreadyInUseException;
 import co.edu.corhuila.csp.catalog.domain.model.InvalidMovieException;
+import co.edu.corhuila.csp.catalog.domain.model.InvalidRoomException;
 import co.edu.corhuila.csp.catalog.domain.model.InvalidStatusTransitionException;
 import co.edu.corhuila.csp.catalog.domain.model.MovieNotFoundException;
+import co.edu.corhuila.csp.catalog.domain.model.RoomNotFoundException;
 import jakarta.servlet.http.HttpServletRequest;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -39,6 +42,12 @@ public class ApiExceptionHandler {
         return answer(HttpStatus.BAD_REQUEST, "VALIDATION_ERROR", exception.getMessage());
     }
 
+    /** 400: a room that no valid room can be (HU-CATALOG-002), named by its broken rule. */
+    @ExceptionHandler(InvalidRoomException.class)
+    ResponseEntity<ErrorResponse> invalidRoom(InvalidRoomException exception) {
+        return answer(HttpStatus.BAD_REQUEST, "VALIDATION_ERROR", exception.getMessage());
+    }
+
     /** 400: a bound of the contract that the ports guard, for example the window of a list. */
     @ExceptionHandler(IllegalArgumentException.class)
     ResponseEntity<ErrorResponse> outOfBounds(IllegalArgumentException exception) {
@@ -60,6 +69,12 @@ public class ApiExceptionHandler {
         return answer(HttpStatus.NOT_FOUND, "NOT_FOUND", exception.getMessage());
     }
 
+    /** 404: no active room has that id; an archived room is not found. */
+    @ExceptionHandler(RoomNotFoundException.class)
+    ResponseEntity<ErrorResponse> roomNotFound(RoomNotFoundException exception) {
+        return answer(HttpStatus.NOT_FOUND, "NOT_FOUND", exception.getMessage());
+    }
+
     /** 404: nothing answers that path. */
     @ExceptionHandler({NoHandlerFoundException.class, NoResourceFoundException.class})
     ResponseEntity<ErrorResponse> noRoute() {
@@ -69,6 +84,12 @@ public class ApiExceptionHandler {
     /** 409: the key was already used with another request and nothing was written (Norma 5.3.8). */
     @ExceptionHandler(IdempotencyKeyConflictException.class)
     ResponseEntity<ErrorResponse> conflict(IdempotencyKeyConflictException exception) {
+        return answer(HttpStatus.CONFLICT, "CONFLICT", exception.getMessage());
+    }
+
+    /** 409: another room has that name, an archived one included (ADR-038); the unique index decides. */
+    @ExceptionHandler(RoomNameAlreadyInUseException.class)
+    ResponseEntity<ErrorResponse> roomNameInUse(RoomNameAlreadyInUseException exception) {
         return answer(HttpStatus.CONFLICT, "CONFLICT", exception.getMessage());
     }
 
