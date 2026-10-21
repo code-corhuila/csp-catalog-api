@@ -26,9 +26,13 @@ final class RsaTestKey {
     }
 
     static String token(List<String> permissions) {
+        return token("11111111-1111-4111-8111-111111111111", permissions);
+    }
+
+    static String token(String subject, List<String> permissions) {
         try {
             JWTClaimsSet claims = new JWTClaimsSet.Builder()
-                    .subject("11111111-1111-4111-8111-111111111111")
+                    .subject(subject)
                     .claim("permissions", permissions)
                     .expirationTime(new Date(System.currentTimeMillis() + 3_600_000))
                     .build();

@@ -38,9 +38,14 @@ import org.springframework.web.filter.OncePerRequestFilter;
  * <p>The routes are closed unless a rule opens them: the public ones are those the contract declares with
  * {@code security: []} (the health checks and {@code GET /billboard}, whatever token it carries), every route under {@code /movies}, reads included, needs {@code catalog:write}, every
  * route under {@code /rooms} needs {@code room:write}, every route under {@code /showtimes} needs
- * {@code showtime:write} except the availability of a showtime, which is the service-to-service route of
- * HU-CATALOG-005 and stays forbidden here, and a route with no rule is forbidden, so a route added later cannot
- * be open by omission.
+ * {@code showtime:write} except the availability of a showtime, and a route with no rule is forbidden, so a
+ * route added later cannot be open by omission.
+ *
+ * <p>The availability of a showtime ({@code GET /showtimes/{id}/availability}) is the service-to-service route
+ * of HU-CATALOG-005 and is governed by the service subjects alone (ADR-042 A1): a valid token whose {@code sub}
+ * is one of them opens it, whatever its permissions, and any other valid token is a 403, a user or an
+ * administrator with {@code showtime:write} included. The opposite also holds: the token of a service subject
+ * opens no other route.
  */
 @Component
 @Order(Ordered.HIGHEST_PRECEDENCE + 1)
@@ -61,13 +66,16 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
 
     private final RSAPublicKey publicKey;
     private final ObjectMapper objectMapper;
+    private final ServiceSubjects serviceSubjects;
 
-    public JwtAuthenticationFilter(RSAPublicKey jwtPublicKey, ObjectMapper objectMapper) {
+    public JwtAuthenticationFilter(RSAPublicKey jwtPublicKey, ObjectMapper objectMapper,
+            ServiceSubjects serviceSubjects) {
         this.publicKey = jwtPublicKey;
         this.objectMapper = objectMapper;
+        this.serviceSubjects = serviceSubjects;
     }
 
-    private record Caller(String userId, List<String> permissions) {
+    private record Caller(String subject, List<String> permissions) {
     }
 
     @Override
@@ -89,12 +97,34 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
             reject(response, HttpStatus.UNAUTHORIZED, "INVALID_TOKEN", "the token is invalid or expired");
             return;
         }
+        String subject = caller.get().subject();
+        if (isAvailabilityRead(request, path)) {
+            if (!serviceSubjects.contains(subject)) {
+                reject(response, HttpStatus.FORBIDDEN, "FORBIDDEN", "You are not authorized to perform this action");
+                return;
+            }
+            chain.doFilter(request, response);
+            return;
+        }
+        if (serviceSubjects.contains(subject)) {
+            reject(response, HttpStatus.FORBIDDEN, "FORBIDDEN", "You are not authorized to perform this action");
+            return;
+        }
+        if (!CorrelationIdFilter.UUID_PATTERN.matcher(subject).matches()) {
+            logger.debug("rejected token: its sub is not the id of a user of this platform");
+            reject(response, HttpStatus.UNAUTHORIZED, "INVALID_TOKEN", "the token is invalid or expired");
+            return;
+        }
         if (!isAllowed(path, caller.get().permissions())) {
             reject(response, HttpStatus.FORBIDDEN, "FORBIDDEN", "You are not authorized to perform this action");
             return;
         }
-        request.setAttribute(USER_ID_ATTRIBUTE, caller.get().userId());
+        request.setAttribute(USER_ID_ATTRIBUTE, subject);
         chain.doFilter(request, response);
+    }
+
+    private static boolean isAvailabilityRead(HttpServletRequest request, String path) {
+        return HttpMethod.GET.matches(request.getMethod()) && SHOWTIME_AVAILABILITY.matcher(path).matches();
     }
 
     private static boolean isPublicBillboardRead(HttpServletRequest request, String path) {
@@ -126,8 +156,8 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
                 logger.debug("rejected token: it has no exp claim or it has expired");
                 return Optional.empty();
             }
-            if (subject == null || !CorrelationIdFilter.UUID_PATTERN.matcher(subject).matches()) {
-                logger.debug("rejected token: its sub is not the id of a user of this platform");
+            if (subject == null || subject.isBlank()) {
+                logger.debug("rejected token: it has no sub claim");
                 return Optional.empty();
             }
             List<String> permissions = claims.getStringListClaim("permissions");

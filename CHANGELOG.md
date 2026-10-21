@@ -10,6 +10,12 @@ introduces it.
 HU-CATALOG-001, HU-CATALOG-002, HU-CATALOG-003, HU-CATALOG-004 and the base scaffold of the service promoted from `qa` to `main`.
 
 ### Added
+- Availability route with the service credential (HU-CATALOG-005, ADR-042): `AvailabilityController` serves
+  `GET /showtimes/{showtimeId}/availability` with the `AvailabilityResponse` of `catalog-service.yaml`. The security
+  filter opens it only to a valid token whose `sub` is in `SERVICE_SUBJECTS` (comma separated, default
+  `booking-service`, empty allows nobody); any other valid token is a 403 and a service token opens no other route.
+  `UseCaseConfiguration` wires `AvailabilityService`; `AvailabilityRoutesContractTest` validates the route against
+  the contract.
 - Availability use case of `catalog-core` (HU-CATALOG-005, ADR-042): the input port `AvailabilityUseCases` and
   `AvailabilityService` answer the `ShowtimeAvailability` read model of a scheduled showtime of a published movie in an
   active room, with the snapshots of the showtime and the seat labels of the current layout. Any other case is a

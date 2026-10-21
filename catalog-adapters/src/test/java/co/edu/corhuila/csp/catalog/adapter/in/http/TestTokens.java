@@ -55,6 +55,10 @@ final class TestTokens {
         return rs256(claims(SUBJECT, permissions, inOneHour()).build(), OTHER_KEYS);
     }
 
+    static String signedByAnotherKey(JWTClaimsSet claims) {
+        return rs256(claims, OTHER_KEYS);
+    }
+
     static String hs256(List<String> permissions) {
         try {
             SignedJWT jwt = new SignedJWT(new JWSHeader(JWSAlgorithm.HS256), claims(SUBJECT, permissions, inOneHour()).build());
