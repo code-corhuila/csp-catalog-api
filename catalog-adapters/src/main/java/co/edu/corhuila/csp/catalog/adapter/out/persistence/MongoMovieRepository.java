@@ -1,10 +1,10 @@
 package co.edu.corhuila.csp.catalog.adapter.out.persistence;
 
 import co.edu.corhuila.csp.catalog.application.port.out.IdempotencyKeyConflictException;
-import co.edu.corhuila.csp.catalog.application.port.out.MovieOperation;
 import co.edu.corhuila.csp.catalog.application.port.out.MoviePage;
 import co.edu.corhuila.csp.catalog.application.port.out.MovieRepository;
 import co.edu.corhuila.csp.catalog.application.port.out.MovieWrite;
+import co.edu.corhuila.csp.catalog.application.port.out.WriteOperation;
 import co.edu.corhuila.csp.catalog.domain.model.Movie;
 import co.edu.corhuila.csp.catalog.domain.model.PublicationStatus;
 import com.mongodb.MongoException;
@@ -101,7 +101,7 @@ public class MongoMovieRepository implements MovieRepository {
 
     private void store(MovieWrite write) {
         Document document = MovieDocumentMapper.toDocument(write.movie());
-        if (write.operation() == MovieOperation.CREATE_MOVIE) {
+        if (write.operation() == WriteOperation.CREATE_MOVIE) {
             template.insert(document, MOVIES);
         } else {
             template.save(document, MOVIES);

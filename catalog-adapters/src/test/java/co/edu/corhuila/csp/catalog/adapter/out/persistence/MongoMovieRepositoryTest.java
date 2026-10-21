@@ -8,9 +8,9 @@ import static org.junit.jupiter.api.Assertions.fail;
 import static org.junit.jupiter.api.Assumptions.assumeTrue;
 
 import co.edu.corhuila.csp.catalog.application.port.out.IdempotencyKeyConflictException;
-import co.edu.corhuila.csp.catalog.application.port.out.MovieOperation;
 import co.edu.corhuila.csp.catalog.application.port.out.MoviePage;
 import co.edu.corhuila.csp.catalog.application.port.out.MovieWrite;
+import co.edu.corhuila.csp.catalog.application.port.out.WriteOperation;
 import co.edu.corhuila.csp.catalog.domain.model.Movie;
 import co.edu.corhuila.csp.catalog.domain.model.MovieChanges;
 import co.edu.corhuila.csp.catalog.domain.model.MovieDetails;
@@ -70,7 +70,7 @@ class MongoMovieRepositoryTest {
     }
 
     private static MovieWrite create(Movie movie, String key, String hash) {
-        return new MovieWrite(movie, MovieOperation.CREATE_MOVIE, key, hash);
+        return new MovieWrite(movie, WriteOperation.CREATE_MOVIE, key, hash);
     }
 
     @Test
@@ -146,7 +146,7 @@ class MongoMovieRepositoryTest {
         Movie changed = movie.change(new MovieChanges("New title", null, null, null, null, null, null, null,
                 PublicationStatus.PUBLISHED), NOW.plusSeconds(60));
 
-        repository.save(new MovieWrite(changed, MovieOperation.UPDATE_MOVIE, "synthetic-key-0002", OTHER_HASH));
+        repository.save(new MovieWrite(changed, WriteOperation.UPDATE_MOVIE, "synthetic-key-0002", OTHER_HASH));
 
         assertEquals(changed, repository.findById(movie.id()).orElseThrow());
         assertEquals(1, template.getCollection("movies").countDocuments());
@@ -158,7 +158,7 @@ class MongoMovieRepositoryTest {
         repository.save(create(movie, "synthetic-key-0001", HASH));
         Movie archived = movie.archive(NOW.plusSeconds(60));
 
-        repository.save(new MovieWrite(archived, MovieOperation.ARCHIVE_MOVIE, "synthetic-key-0002", OTHER_HASH));
+        repository.save(new MovieWrite(archived, WriteOperation.ARCHIVE_MOVIE, "synthetic-key-0002", OTHER_HASH));
 
         assertEquals(archived, repository.findById(movie.id()).orElseThrow());
         assertEquals(NOW.plusSeconds(60), repository.findById(movie.id()).orElseThrow().deletedAt());
