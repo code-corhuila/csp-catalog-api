@@ -2,12 +2,16 @@ package co.edu.corhuila.csp.catalog.app;
 
 import co.edu.corhuila.csp.catalog.adapter.out.persistence.MongoMovieRepository;
 import co.edu.corhuila.csp.catalog.adapter.out.persistence.MongoRoomRepository;
+import co.edu.corhuila.csp.catalog.adapter.out.persistence.MongoShowtimeRepository;
 import co.edu.corhuila.csp.catalog.application.port.in.MovieUseCases;
 import co.edu.corhuila.csp.catalog.application.port.in.RoomUseCases;
+import co.edu.corhuila.csp.catalog.application.port.in.ShowtimeUseCases;
 import co.edu.corhuila.csp.catalog.application.port.out.MovieRepository;
 import co.edu.corhuila.csp.catalog.application.port.out.RoomRepository;
+import co.edu.corhuila.csp.catalog.application.port.out.ShowtimeRepository;
 import co.edu.corhuila.csp.catalog.application.usecase.MovieService;
 import co.edu.corhuila.csp.catalog.application.usecase.RoomService;
+import co.edu.corhuila.csp.catalog.application.usecase.ShowtimeService;
 import java.time.Clock;
 import java.util.UUID;
 import org.springframework.context.annotation.Bean;
@@ -39,5 +43,15 @@ class UseCaseConfiguration {
     @Bean
     RoomUseCases roomUseCases(RoomRepository rooms) {
         return new RoomService(rooms, UUID::randomUUID, Clock.systemUTC());
+    }
+
+    @Bean
+    ShowtimeRepository showtimeRepository(MongoTemplate mongo) {
+        return new MongoShowtimeRepository(mongo);
+    }
+
+    @Bean
+    ShowtimeUseCases showtimeUseCases(ShowtimeRepository showtimes, MovieRepository movies, RoomRepository rooms) {
+        return new ShowtimeService(showtimes, movies, rooms, UUID::randomUUID, Clock.systemUTC());
     }
 }

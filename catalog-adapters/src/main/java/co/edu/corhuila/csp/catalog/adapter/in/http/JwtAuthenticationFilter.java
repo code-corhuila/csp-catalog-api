@@ -19,6 +19,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
+import java.util.regex.Pattern;
 import org.springframework.core.Ordered;
 import org.springframework.core.annotation.Order;
 import org.springframework.http.HttpStatus;
@@ -35,8 +36,10 @@ import org.springframework.web.filter.OncePerRequestFilter;
  *
  * <p>The routes are closed unless a rule opens them: the public ones are those the contract declares with
  * {@code security: []}, every route under {@code /movies}, reads included, needs {@code catalog:write}, every
- * route under {@code /rooms} needs {@code room:write}, and a route with no rule is forbidden, so a route added
- * later cannot be open by omission.
+ * route under {@code /rooms} needs {@code room:write}, every route under {@code /showtimes} needs
+ * {@code showtime:write} except the availability of a showtime, which is the service-to-service route of
+ * HU-CATALOG-005 and stays forbidden here, and a route with no rule is forbidden, so a route added later cannot
+ * be open by omission.
  */
 @Component
 @Order(Ordered.HIGHEST_PRECEDENCE + 1)
@@ -49,7 +52,9 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
     private static final Set<String> PUBLIC_PATHS = Set.of("/health", "/health/ready", "/billboard");
     /** The permission that every route under a prefix needs: the routes of a resource and nothing else. */
     private static final Map<String, String> PERMISSION_BY_ROUTE =
-            Map.of("/movies", "catalog:write", "/rooms", "room:write");
+            Map.of("/movies", "catalog:write", "/rooms", "room:write", "/showtimes", "showtime:write");
+    /** Not served by the showtime routes: the permission of {@code /showtimes} must not open it. */
+    private static final Pattern SHOWTIME_AVAILABILITY = Pattern.compile("/showtimes/[^/]+/availability/*");
 
     private final RSAPublicKey publicKey;
     private final ObjectMapper objectMapper;
@@ -90,7 +95,7 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
     }
 
     private static boolean isAllowed(String path, List<String> permissions) {
-        return PERMISSION_BY_ROUTE.entrySet().stream()
+        return !SHOWTIME_AVAILABILITY.matcher(path).matches() && PERMISSION_BY_ROUTE.entrySet().stream()
                 .anyMatch(rule -> isUnder(path, rule.getKey()) && permissions.contains(rule.getValue()));
     }
 
