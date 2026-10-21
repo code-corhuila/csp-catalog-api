@@ -6,6 +6,10 @@ introduces it.
 ## [Unreleased]
 
 ### Added
+- Showtime ports and use cases of `catalog-core` (HU-CATALOG-003, ADR-039): the input port `ShowtimeUseCases` with its
+  inputs, the output port `ShowtimeRepository` with `ShowtimeWrite` and `ShowtimePage`, and `ShowtimeService`, which
+  replays by key first, validates the movie and the room, asks for the overlap check only when a scheduled showtime
+  moves in time and carries the `ShowtimePublished` event only on creation.
 - Showtime domain of `catalog-core` (HU-CATALOG-003, ADR-039): the `Showtime` aggregate with its half-open
   `TimeInterval`, the `SCHEDULED`, `CANCELLED` and `COMPLETED` lifecycle, snapshots of the movie title and the room
   name, scheduling only for a published movie and an active room, partial changes, cancellation, the
