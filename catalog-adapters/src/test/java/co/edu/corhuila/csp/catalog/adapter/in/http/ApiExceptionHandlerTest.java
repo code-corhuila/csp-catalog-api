@@ -7,8 +7,12 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 
 import co.edu.corhuila.csp.catalog.application.port.out.IdempotencyKeyConflictException;
 import co.edu.corhuila.csp.catalog.domain.model.InvalidMovieException;
+import co.edu.corhuila.csp.catalog.domain.model.InvalidShowtimeException;
 import co.edu.corhuila.csp.catalog.domain.model.InvalidStatusTransitionException;
 import co.edu.corhuila.csp.catalog.domain.model.MovieNotFoundException;
+import co.edu.corhuila.csp.catalog.domain.model.ShowtimeNotFoundException;
+import co.edu.corhuila.csp.catalog.domain.model.ShowtimeOverlapException;
+import co.edu.corhuila.csp.catalog.domain.model.ShowtimeReferenceException;
 import java.util.UUID;
 import org.junit.jupiter.api.Test;
 import org.springframework.dao.DataAccessResourceFailureException;
@@ -40,6 +44,26 @@ class ApiExceptionHandlerTest {
         @GetMapping("/not-found")
         void notFound() {
             throw new MovieNotFoundException(UUID.fromString("11111111-1111-4111-8111-111111111111"));
+        }
+
+        @GetMapping("/invalid-showtime")
+        void invalidShowtime() {
+            throw new InvalidShowtimeException("an interval needs a start that is strictly before its end");
+        }
+
+        @GetMapping("/showtime-not-found")
+        void showtimeNotFound() {
+            throw new ShowtimeNotFoundException(UUID.fromString("33333333-3333-4333-8333-333333333333"));
+        }
+
+        @GetMapping("/showtime-overlap")
+        void showtimeOverlap() {
+            throw new ShowtimeOverlapException(UUID.fromString("33333333-3333-4333-8333-333333333333"));
+        }
+
+        @GetMapping("/showtime-reference")
+        void showtimeReference() {
+            throw new ShowtimeReferenceException("the movie 1 is not published");
         }
 
         @GetMapping("/conflict")
@@ -91,6 +115,37 @@ class ApiExceptionHandlerTest {
                 .andExpect(status().isNotFound())
                 .andExpect(jsonPath("$.error").value("NOT_FOUND"))
                 .andExpect(jsonPath("$.message").value("Movie 11111111-1111-4111-8111-111111111111 was not found"));
+    }
+
+    @Test
+    void aBrokenShowtimeInvariantIsA400ValidationError() throws Exception {
+        mvc.perform(get("/invalid-showtime"))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.error").value("VALIDATION_ERROR"))
+                .andExpect(jsonPath("$.message").value("an interval needs a start that is strictly before its end"));
+    }
+
+    @Test
+    void anUnknownShowtimeIsA404() throws Exception {
+        mvc.perform(get("/showtime-not-found"))
+                .andExpect(status().isNotFound())
+                .andExpect(jsonPath("$.error").value("NOT_FOUND"))
+                .andExpect(jsonPath("$.message").value("Showtime 33333333-3333-4333-8333-333333333333 was not found"));
+    }
+
+    @Test
+    void aShowtimeThatOverlapsAnotherOfTheRoomIsA409() throws Exception {
+        mvc.perform(get("/showtime-overlap"))
+                .andExpect(status().isConflict())
+                .andExpect(jsonPath("$.error").value("CONFLICT"));
+    }
+
+    @Test
+    void aShowtimeOfAMovieOrRoomThatCannotBeUsedIsA422BusinessRuleViolation() throws Exception {
+        mvc.perform(get("/showtime-reference"))
+                .andExpect(status().isUnprocessableEntity())
+                .andExpect(jsonPath("$.error").value("BUSINESS_RULE_VIOLATION"))
+                .andExpect(jsonPath("$.message").value("the movie 1 is not published"));
     }
 
     @Test
