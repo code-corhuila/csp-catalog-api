@@ -5,6 +5,10 @@ introduces it.
 
 ## [Unreleased]
 
+## [3.0.0] - 2026-10-21
+
+HU-CATALOG-001 and the base scaffold of the service promoted from `qa` to `main`.
+
 ### Added
 - Movie domain of `catalog-core` (HU-CATALOG-001, ADR-037): the `Movie` aggregate and its `MovieDetails`
   with the invariants of the data model (title, duration of at least one minute, classification, at most 20
