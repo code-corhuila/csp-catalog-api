@@ -3,6 +3,10 @@ spring:
     name: catalog-api
   lifecycle:
     timeout-per-shutdown-phase: 20s   # graceful shutdown: in-flight requests may finish for 20 s
+  jackson:
+    serialization:
+      # catalog-service.yaml declares every date as format: date, never as the numbers of an array.
+      write-dates-as-timestamps: false
   data:
     mongodb:
       # One database per domain (Annex J.5). The URI comes from the environment; see .env.example.
