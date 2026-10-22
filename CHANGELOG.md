@@ -6,6 +6,11 @@ introduces it.
 ## [Unreleased]
 
 ### Added
+- Room ports and use cases of `catalog-core` (HU-CATALOG-002, ADR-038): the input port `RoomUseCases`, the output 
+  ports `RoomRepository` and `RoomNameAlreadyInUseException`, and `RoomService`, which replays a write by its 
+  `Idempotency-Key` before the rules of the current state are evaluated, rejects a declared capacity that differs 
+  from the seats and treats an archived room as not found. The SHA-256 request hash and the replay step are shared 
+  with the movies in `IdempotentWrites`, and `MovieOperation` is now `WriteOperation`.
 - Room domain of `catalog-core` (HU-CATALOG-002): the `Room` aggregate with its `RoomDetails` and `Seat` layout, 
   the invariants of the data model (name of at most 100 characters, 1 to 500 seats, unique seat labels, optional 
   row and number, `STANDARD`, `VIP` and `ACCESSIBLE` seat types), partial changes, archiving that never removes the 

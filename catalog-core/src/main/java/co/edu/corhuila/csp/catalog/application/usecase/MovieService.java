@@ -5,26 +5,19 @@ import co.edu.corhuila.csp.catalog.application.port.in.CreateMovieInput;
 import co.edu.corhuila.csp.catalog.application.port.in.MovieUseCases;
 import co.edu.corhuila.csp.catalog.application.port.in.UpdateMovieInput;
 import co.edu.corhuila.csp.catalog.application.port.out.IdGenerator;
-import co.edu.corhuila.csp.catalog.application.port.out.MovieOperation;
 import co.edu.corhuila.csp.catalog.application.port.out.MoviePage;
 import co.edu.corhuila.csp.catalog.application.port.out.MovieRepository;
 import co.edu.corhuila.csp.catalog.application.port.out.MovieWrite;
+import co.edu.corhuila.csp.catalog.application.port.out.WriteOperation;
 import co.edu.corhuila.csp.catalog.domain.model.Movie;
 import co.edu.corhuila.csp.catalog.domain.model.MovieChanges;
 import co.edu.corhuila.csp.catalog.domain.model.MovieDetails;
 import co.edu.corhuila.csp.catalog.domain.model.MovieNotFoundException;
-import java.nio.charset.StandardCharsets;
-import java.security.MessageDigest;
-import java.security.NoSuchAlgorithmException;
 import java.time.Clock;
 import java.time.Instant;
 import java.time.temporal.ChronoUnit;
-import java.util.HexFormat;
-import java.util.Optional;
 import java.util.UUID;
 import java.util.function.Supplier;
-import java.util.stream.Collectors;
-import java.util.stream.Stream;
 
 /**
  * The use cases of the movie aggregate. It depends only on the domain and on the ports, and it asks the
@@ -46,10 +39,11 @@ public class MovieService implements MovieUseCases {
     @Override
     public Movie createMovie(CreateMovieInput input) {
         MovieDetails d = input.details();
-        String hash = requestHash(MovieOperation.CREATE_MOVIE, null, d.title(), d.synopsis(), d.durationMinutes(),
-                d.classification(), d.releaseDate(), d.genres(), d.cast(), d.posterUrl(), input.status());
+        String hash = IdempotentWrites.requestHash(WriteOperation.CREATE_MOVIE, null, d.title(), d.synopsis(),
+                d.durationMinutes(), d.classification(), d.releaseDate(), d.genres(), d.cast(), d.posterUrl(),
+                input.status());
         return replayOr(input.idempotencyKey(), hash, () -> movies.save(new MovieWrite(
-                Movie.create(ids.next(), d, input.status(), now()), MovieOperation.CREATE_MOVIE,
+                Movie.create(ids.next(), d, input.status(), now()), WriteOperation.CREATE_MOVIE,
                 input.idempotencyKey(), hash)));
     }
 
@@ -66,41 +60,29 @@ public class MovieService implements MovieUseCases {
     @Override
     public Movie updateMovie(UpdateMovieInput input) {
         MovieChanges c = input.changes();
-        String hash = requestHash(MovieOperation.UPDATE_MOVIE, input.movieId(), c.title(), c.synopsis(),
-                c.durationMinutes(), c.classification(), c.releaseDate(), c.genres(), c.cast(), c.posterUrl(),
-                c.status());
+        String hash = IdempotentWrites.requestHash(WriteOperation.UPDATE_MOVIE, input.movieId(), c.title(),
+                c.synopsis(), c.durationMinutes(), c.classification(), c.releaseDate(), c.genres(), c.cast(),
+                c.posterUrl(), c.status());
         return replayOr(input.idempotencyKey(), hash, () -> movies.save(new MovieWrite(
-                getMovie(input.movieId()).change(c, now()), MovieOperation.UPDATE_MOVIE,
+                getMovie(input.movieId()).change(c, now()), WriteOperation.UPDATE_MOVIE,
                 input.idempotencyKey(), hash)));
     }
 
     @Override
     public void archiveMovie(ArchiveMovieInput input) {
-        String hash = requestHash(MovieOperation.ARCHIVE_MOVIE, input.movieId());
+        String hash = IdempotentWrites.requestHash(WriteOperation.ARCHIVE_MOVIE, input.movieId());
         replayOr(input.idempotencyKey(), hash, () -> movies.save(new MovieWrite(
-                getMovie(input.movieId()).archive(now()), MovieOperation.ARCHIVE_MOVIE,
+                getMovie(input.movieId()).archive(now()), WriteOperation.ARCHIVE_MOVIE,
                 input.idempotencyKey(), hash)));
     }
 
     private Movie replayOr(String idempotencyKey, String requestHash, Supplier<Movie> write) {
-        Optional<UUID> replayed = movies.findIdempotentResource(idempotencyKey, requestHash);
-        return replayed.isPresent() ? getMovie(replayed.get()) : write.get();
+        return IdempotentWrites.replayOr(movies.findIdempotentResource(idempotencyKey, requestHash), this::getMovie,
+                write);
     }
 
     /** The database keeps milliseconds: a replay must show the same instant the first answer did. */
     private Instant now() {
         return clock.instant().truncatedTo(ChronoUnit.MILLIS);
-    }
-
-    private static String requestHash(MovieOperation operation, UUID movieId, Object... fields) {
-        String canonical = Stream.concat(Stream.of(operation, movieId), Stream.of(fields))
-                .map(String::valueOf)
-                .collect(Collectors.joining("\u001f"));
-        try {
-            return HexFormat.of().formatHex(
-                    MessageDigest.getInstance("SHA-256").digest(canonical.getBytes(StandardCharsets.UTF_8)));
-        } catch (NoSuchAlgorithmException e) {
-            throw new IllegalStateException("SHA-256 is part of every Java platform", e);
-        }
     }
 }

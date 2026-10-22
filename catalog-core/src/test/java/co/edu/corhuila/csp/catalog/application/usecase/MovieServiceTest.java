@@ -10,10 +10,10 @@ import co.edu.corhuila.csp.catalog.application.port.in.CreateMovieInput;
 import co.edu.corhuila.csp.catalog.application.port.in.UpdateMovieInput;
 import co.edu.corhuila.csp.catalog.application.port.out.IdGenerator;
 import co.edu.corhuila.csp.catalog.application.port.out.IdempotencyKeyConflictException;
-import co.edu.corhuila.csp.catalog.application.port.out.MovieOperation;
 import co.edu.corhuila.csp.catalog.application.port.out.MoviePage;
 import co.edu.corhuila.csp.catalog.application.port.out.MovieRepository;
 import co.edu.corhuila.csp.catalog.application.port.out.MovieWrite;
+import co.edu.corhuila.csp.catalog.application.port.out.WriteOperation;
 import co.edu.corhuila.csp.catalog.domain.model.InvalidMovieException;
 import co.edu.corhuila.csp.catalog.domain.model.InvalidStatusTransitionException;
 import co.edu.corhuila.csp.catalog.domain.model.Movie;
@@ -68,7 +68,7 @@ class MovieServiceTest {
 
         MovieWrite write = movies.writes.get(0);
         assertEquals(KEY, write.idempotencyKey());
-        assertEquals(MovieOperation.CREATE_MOVIE, write.operation());
+        assertEquals(WriteOperation.CREATE_MOVIE, write.operation());
         assertEquals(64, write.requestHash().length());
         assertTrue(write.requestHash().matches("[0-9a-f]{64}"));
     }
@@ -157,7 +157,7 @@ class MovieServiceTest {
 
         assertEquals("New title", updated.details().title());
         assertEquals(NOW_IN_MILLIS.plusSeconds(60), updated.updatedAt());
-        assertEquals(MovieOperation.UPDATE_MOVIE, movies.writes.get(1).operation());
+        assertEquals(WriteOperation.UPDATE_MOVIE, movies.writes.get(1).operation());
     }
 
     @Test
@@ -198,7 +198,7 @@ class MovieServiceTest {
         Movie archived = movies.stored.get(ID);
         assertEquals(PublicationStatus.ARCHIVED, archived.status());
         assertEquals(NOW_IN_MILLIS, archived.deletedAt());
-        assertEquals(MovieOperation.ARCHIVE_MOVIE, movies.writes.get(1).operation());
+        assertEquals(WriteOperation.ARCHIVE_MOVIE, movies.writes.get(1).operation());
     }
 
     @Test
