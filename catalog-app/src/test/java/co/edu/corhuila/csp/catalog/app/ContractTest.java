@@ -72,6 +72,8 @@ abstract class ContractTest extends ApplicationContextTest {
     void emptyTheCollections() {
         mongo.getCollection("movies").deleteMany(new org.bson.Document());
         mongo.getCollection("rooms").deleteMany(new org.bson.Document());
+        mongo.getCollection("showtimes").deleteMany(new org.bson.Document());
+        mongo.getCollection("outbox_event").deleteMany(new org.bson.Document());
         mongo.getCollection("idempotency_key").deleteMany(new org.bson.Document());
     }
 

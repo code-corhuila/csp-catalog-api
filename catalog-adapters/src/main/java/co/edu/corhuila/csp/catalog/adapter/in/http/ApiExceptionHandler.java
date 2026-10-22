@@ -4,9 +4,13 @@ import co.edu.corhuila.csp.catalog.application.port.out.IdempotencyKeyConflictEx
 import co.edu.corhuila.csp.catalog.application.port.out.RoomNameAlreadyInUseException;
 import co.edu.corhuila.csp.catalog.domain.model.InvalidMovieException;
 import co.edu.corhuila.csp.catalog.domain.model.InvalidRoomException;
+import co.edu.corhuila.csp.catalog.domain.model.InvalidShowtimeException;
 import co.edu.corhuila.csp.catalog.domain.model.InvalidStatusTransitionException;
 import co.edu.corhuila.csp.catalog.domain.model.MovieNotFoundException;
 import co.edu.corhuila.csp.catalog.domain.model.RoomNotFoundException;
+import co.edu.corhuila.csp.catalog.domain.model.ShowtimeNotFoundException;
+import co.edu.corhuila.csp.catalog.domain.model.ShowtimeOverlapException;
+import co.edu.corhuila.csp.catalog.domain.model.ShowtimeReferenceException;
 import jakarta.servlet.http.HttpServletRequest;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -48,6 +52,12 @@ public class ApiExceptionHandler {
         return answer(HttpStatus.BAD_REQUEST, "VALIDATION_ERROR", exception.getMessage());
     }
 
+    /** 400: a showtime that no valid showtime can be (HU-CATALOG-003), named by its broken rule. */
+    @ExceptionHandler(InvalidShowtimeException.class)
+    ResponseEntity<ErrorResponse> invalidShowtime(InvalidShowtimeException exception) {
+        return answer(HttpStatus.BAD_REQUEST, "VALIDATION_ERROR", exception.getMessage());
+    }
+
     /** 400: a bound of the contract that the ports guard, for example the window of a list. */
     @ExceptionHandler(IllegalArgumentException.class)
     ResponseEntity<ErrorResponse> outOfBounds(IllegalArgumentException exception) {
@@ -75,6 +85,12 @@ public class ApiExceptionHandler {
         return answer(HttpStatus.NOT_FOUND, "NOT_FOUND", exception.getMessage());
     }
 
+    /** 404: no showtime has that id; a cancelled one is found. */
+    @ExceptionHandler(ShowtimeNotFoundException.class)
+    ResponseEntity<ErrorResponse> showtimeNotFound(ShowtimeNotFoundException exception) {
+        return answer(HttpStatus.NOT_FOUND, "NOT_FOUND", exception.getMessage());
+    }
+
     /** 404: nothing answers that path. */
     @ExceptionHandler({NoHandlerFoundException.class, NoResourceFoundException.class})
     ResponseEntity<ErrorResponse> noRoute() {
@@ -91,6 +107,18 @@ public class ApiExceptionHandler {
     @ExceptionHandler(RoomNameAlreadyInUseException.class)
     ResponseEntity<ErrorResponse> roomNameInUse(RoomNameAlreadyInUseException exception) {
         return answer(HttpStatus.CONFLICT, "CONFLICT", exception.getMessage());
+    }
+
+    /** 409: another scheduled showtime occupies the room during that interval (ADR-039). */
+    @ExceptionHandler(ShowtimeOverlapException.class)
+    ResponseEntity<ErrorResponse> showtimeOverlap(ShowtimeOverlapException exception) {
+        return answer(HttpStatus.CONFLICT, "CONFLICT", exception.getMessage());
+    }
+
+    /** 422: the movie is missing or not published, or the room is missing or archived (ADR-039). */
+    @ExceptionHandler(ShowtimeReferenceException.class)
+    ResponseEntity<ErrorResponse> showtimeReference(ShowtimeReferenceException exception) {
+        return answer(HttpStatus.UNPROCESSABLE_ENTITY, "BUSINESS_RULE_VIOLATION", exception.getMessage());
     }
 
     /** 422: the lifecycle of ADR-037 forbids the change, for example publishing an archived movie. */

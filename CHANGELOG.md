@@ -6,6 +6,16 @@ introduces it.
 ## [Unreleased]
 
 ### Added
+- Billboard use case of `catalog-core` (HU-CATALOG-004, ADR-041): the input port `BillboardUseCases` with 
+  `BillboardQuery`, the output port `BillboardReader` with the read model `BillboardPage`, `BillboardEntry`, 
+  `BillboardMovie`, `BillboardRoom` and `BillboardShowtime`, and `BillboardService`, which asks the reader for the 
+  upcoming showtimes as of the clock instant in milliseconds.
+- Showtime routes (HU-CATALOG-003, ADR-039): `ShowtimeController` serves `POST`, `GET`, `PATCH` and `DELETE` on
+  `/showtimes` and `/showtimes/{showtimeId}` with the DTOs of `catalog-service.yaml`, the `Idempotency-Key` bounds and
+  the errors of the contract (400, 404, the 409 of an overlap and the 422 of a movie or room that cannot be used).
+  The security filter maps `/showtimes` to `showtime:write`, reads included (DEC-006), and keeps the availability of
+  a showtime forbidden until HU-CATALOG-005. `UseCaseConfiguration` wires `MongoShowtimeRepository` and
+  `ShowtimeService`; `ShowtimeRoutesContractTest` validates every route against the contract.
 - MongoDB persistence of the showtimes (HU-CATALOG-003, ADR-039): `MongoShowtimeRepository` writes the showtime, its
   `idempotency_key` and, for a creation, the `ShowtimePublished` event in `outbox_event` in one transaction. The
   transaction first increments `schedule_version` of the room, so concurrent schedulers of one room conflict and the
