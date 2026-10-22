@@ -6,6 +6,11 @@ introduces it.
 ## [Unreleased]
 
 ### Added
+- MongoDB reader of the movie search (HU-CATALOG-006, ADR-044): `MongoMovieSearchReader` implements `MovieSearchReader` with one
+  query on `movies`: published and not archived movies, a `$text` query that requires every word of the text as a quoted
+  phrase of letters and digits (so a hyphen or a quote is never search syntax), the exact genre, the maximum duration,
+  order by title and then id, and the total of the matches. `MongoBillboardReader` shares its public movie mapping.
+  `MongoMovieSearchReaderTest` runs it against MongoDB with the schema of `csp-catalog-db`. It has no route yet.
 - Movie search use case of `catalog-core` (HU-CATALOG-006, ADR-044): `MovieSearchQuery` validates and normalizes the filters
   (`q` trimmed, at most 100 characters and ignored when blank, `genre` not blank and at most 50 characters,
   `durationMax` from 1, `page` from 1 and `limit` from 1 to 100) and gives the words of the text, the input port
