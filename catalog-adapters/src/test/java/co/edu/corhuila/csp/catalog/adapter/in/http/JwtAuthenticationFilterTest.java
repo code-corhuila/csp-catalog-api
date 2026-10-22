@@ -212,6 +212,42 @@ class JwtAuthenticationFilterTest {
     }
 
     @Test
+    void theMovieSearchNeedsNoToken() throws Exception {
+        assertTrue(call("GET", "/billboard/movies", null).chained());
+    }
+
+    @Test
+    void theMovieSearchIgnoresATokenThatIsSentWhateverItIs() throws Exception {
+        assertTrue(call("GET", "/billboard/movies", "Bearer not-a-jwt").chained());
+        assertTrue(call("GET", "/billboard/movies", "Bearer " + TestTokens.hs256(WRITER)).chained());
+        assertTrue(call("GET", "/billboard/movies", "Bearer " + TestTokens.signedByAnotherKey(WRITER)).chained());
+        assertTrue(call("GET", "/billboard/movies", "Bearer " + TestTokens.rs256(
+                TestTokens.claims(TestTokens.SUBJECT, WRITER, TestTokens.anHourAgo()).build())).chained());
+        assertTrue(call("GET", "/billboard/movies", "Basic dXNlcjpwYXNz").chained());
+        assertTrue(call("GET", "/billboard/movies", "Bearer " + TestTokens.valid(READER)).chained());
+        assertTrue(call("GET", "/billboard/movies", "Bearer " + TestTokens.valid(List.of())).chained());
+    }
+
+    @Test
+    void onlyTheReadOfTheExactMovieSearchRouteIsPublic() throws Exception {
+        for (String method : List.of("POST", "PUT", "PATCH", "DELETE")) {
+            assertRejected(call(method, "/billboard/movies", null), 401, "UNAUTHORIZED");
+            assertRejected(call(method, "/billboard/movies", "Bearer " + TestTokens.valid(WRITER)), 403, "FORBIDDEN");
+        }
+        assertRejected(call("GET", "/billboard/moviesx", null), 401, "UNAUTHORIZED");
+        assertRejected(call("GET", "/billboard/movies/", null), 401, "UNAUTHORIZED");
+        assertRejected(call("GET", "/billboard/movies/extra", null), 401, "UNAUTHORIZED");
+        assertRejected(call("GET", "/billboard/movies/11111111-1111-4111-8111-111111111111", null), 401, "UNAUTHORIZED");
+    }
+
+    @Test
+    void theMoviesRoutesKeepTheirPermissionWhenTheSearchIsPublic() throws Exception {
+        assertRejected(call("GET", "/movies", null), 401, "UNAUTHORIZED");
+        assertRejected(call("GET", "/movies", "Bearer " + TestTokens.valid(READER)), 403, "FORBIDDEN");
+        assertTrue(call("GET", "/movies", "Bearer " + TestTokens.valid(WRITER)).chained());
+    }
+
+    @Test
     void onlyTheReadOfTheExactBillboardRouteIsPublic() throws Exception {
         for (String method : List.of("POST", "PUT", "PATCH", "DELETE")) {
             assertRejected(call(method, "/billboard", null), 401, "UNAUTHORIZED");
@@ -414,7 +450,9 @@ class JwtAuthenticationFilterTest {
         String service = "Bearer " + tokenOf(SERVICE, List.of());
 
         assertTrue(call("GET", "/billboard", service).chained());
+        assertTrue(call("GET", "/billboard/movies", service).chained());
         assertTrue(call("GET", "/health", service).chained());
         assertRejected(call("POST", "/billboard", service), 403, "FORBIDDEN");
+        assertRejected(call("POST", "/billboard/movies", service), 403, "FORBIDDEN");
     }
 }
