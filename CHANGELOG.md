@@ -7,7 +7,7 @@ introduces it.
 
 ## [3.0.0] - 2026-10-21
 
-HU-CATALOG-001, HU-CATALOG-002, HU-CATALOG-003, HU-CATALOG-004 and the base scaffold of the service promoted from `qa` to `main`.
+HU-CATALOG-001, HU-CATALOG-002, HU-CATALOG-003, HU-CATALOG-004, HU-CATALOG-005 and the base scaffold of the service promoted from `qa` to `main`.
 
 ### Added
 - Availability route with the service credential (HU-CATALOG-005, ADR-042): `AvailabilityController` serves
