@@ -7,7 +7,7 @@ introduces it.
 
 ## [3.0.0] - 2026-10-21
 
-HU-CATALOG-001 and the base scaffold of the service promoted from `qa` to `main`.
+HU-CATALOG-001, HU-CATALOG-002 and the base scaffold of the service promoted from `qa` to `main`.
 
 ### Added
 - Room routes (HU-CATALOG-002, ADR-038): `RoomController` serves `POST`, `GET`, `PATCH` and `DELETE` on `/rooms`
