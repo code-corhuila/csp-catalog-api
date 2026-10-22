@@ -29,9 +29,6 @@ import org.springframework.web.bind.annotation.RestController;
 @RequestMapping("/movies")
 public class MovieController {
 
-    private static final int MIN_KEY_LENGTH = 8;
-    private static final int MAX_KEY_LENGTH = 128;
-
     private final MovieUseCases movies;
 
     public MovieController(MovieUseCases movies) {
@@ -44,7 +41,7 @@ public class MovieController {
             @RequestBody CreateMovieRequest request,
             HttpServletRequest http) {
         Movie movie = movies.createMovie(
-                new CreateMovieInput(checked(idempotencyKey), request.details(), request.requiredStatus()));
+                new CreateMovieInput(IdempotencyKeys.checked(idempotencyKey), request.details(), request.requiredStatus()));
         URI location = URI.create(http.getContextPath() + "/movies/" + movie.id());
         return ResponseEntity.created(location).body(MovieResponse.of(movie));
     }
@@ -65,21 +62,12 @@ public class MovieController {
             @RequestHeader("Idempotency-Key") String idempotencyKey,
             @RequestBody UpdateMovieRequest request) {
         return MovieResponse.of(
-                movies.updateMovie(new UpdateMovieInput(checked(idempotencyKey), movieId, request.changes())));
+                movies.updateMovie(new UpdateMovieInput(IdempotencyKeys.checked(idempotencyKey), movieId, request.changes())));
     }
 
     @DeleteMapping("/{movieId}")
     ResponseEntity<Void> archive(@PathVariable UUID movieId, @RequestHeader("Idempotency-Key") String idempotencyKey) {
-        movies.archiveMovie(new ArchiveMovieInput(checked(idempotencyKey), movieId));
+        movies.archiveMovie(new ArchiveMovieInput(IdempotencyKeys.checked(idempotencyKey), movieId));
         return ResponseEntity.noContent().build();
-    }
-
-    /** The bounds of the header in {@code _shared.yaml}: 8 to 128 characters. */
-    private static String checked(String idempotencyKey) {
-        if (idempotencyKey.isBlank() || idempotencyKey.length() < MIN_KEY_LENGTH
-                || idempotencyKey.length() > MAX_KEY_LENGTH) {
-            throw new IllegalArgumentException("the Idempotency-Key must have between 8 and 128 characters");
-        }
-        return idempotencyKey;
     }
 }

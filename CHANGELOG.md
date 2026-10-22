@@ -6,6 +6,12 @@ introduces it.
 ## [Unreleased]
 
 ### Added
+- Room routes (HU-CATALOG-002, ADR-038): `RoomController` serves `POST`, `GET`, `PATCH` and `DELETE` on `/rooms`
+  and `/rooms/{roomId}` with the DTOs of `catalog-service.yaml`, the `Idempotency-Key` bounds and the errors of the
+  contract (400, 404 and the 409 of a name in use). The security filter now maps each route prefix to its permission:
+  `/movies` needs `catalog:write` and `/rooms` needs `room:write`. `PageMeta` and `IdempotencyKeys` are shared with the
+  movie routes, and `RoomRoutesContractTest` validates every room request and answer against the contract on top of
+  the shared `ContractTest` base.
 - MongoDB persistence of the rooms (HU-CATALOG-002, ADR-038): `MongoRoomRepository` writes the room and its
   `idempotency_key` in one transaction, answers a name already in use from the unique index `idx_rooms_name` with
   `RoomNameAlreadyInUseException` and writes nothing, lists the rooms that are not archived newest first and guards
