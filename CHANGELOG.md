@@ -6,6 +6,23 @@ introduces it.
 ## [Unreleased]
 
 ### Added
+- Public movie search route (HU-CATALOG-006, ADR-044): `MovieSearchController` serves `GET /billboard/movies` with the
+  `q`, `genre`, `durationMax`, `page` and `limit` of `catalog-service.yaml` and answers the public `BillboardMovie` with
+  the `PaginatedMeta`; a malformed filter is a 400. The security filter opens only the exact GET of the route, like
+  `GET /billboard`, whatever token it carries, and `GET /movies` keeps `catalog:write`. `UseCaseConfiguration` wires
+  `MongoMovieSearchReader` and `MovieSearchService`; `MovieSearchRoutesContractTest` validates the route against the
+  contract.
+- MongoDB reader of the movie search (HU-CATALOG-006, ADR-044): `MongoMovieSearchReader` implements `MovieSearchReader` with one
+  query on `movies`: published and not archived movies, a `$text` query that requires every word of the text as a quoted
+  phrase of letters and digits (so a hyphen or a quote is never search syntax), the exact genre, the maximum duration,
+  order by title and then id, and the total of the matches. `MongoBillboardReader` shares its public movie mapping.
+  `MongoMovieSearchReaderTest` runs it against MongoDB with the schema of `csp-catalog-db`. It has no route yet.
+- Movie search use case of `catalog-core` (HU-CATALOG-006, ADR-044): `MovieSearchQuery` validates and normalizes the filters
+  (`q` trimmed, at most 100 characters and ignored when blank, `genre` not blank and at most 50 characters,
+  `durationMax` from 1, `page` from 1 and `limit` from 1 to 100) and gives the words of the text, the input port
+  `MovieSearchUseCases` and `MovieSearchService` answer a `MovieSearchPage` of the public `BillboardMovie` through the
+  output port `MovieSearchReader`, whose javadoc states the selection and order of the reader that follows. It has no
+  adapter and no route yet.
 - Availability route with the service credential (HU-CATALOG-005, ADR-042): `AvailabilityController` serves
   `GET /showtimes/{showtimeId}/availability` with the `AvailabilityResponse` of `catalog-service.yaml`. The security
   filter opens it only to a valid token whose `sub` is in `SERVICE_SUBJECTS` (comma separated, default

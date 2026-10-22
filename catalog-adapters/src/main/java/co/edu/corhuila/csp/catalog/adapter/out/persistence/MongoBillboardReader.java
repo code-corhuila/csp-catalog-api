@@ -88,13 +88,18 @@ public class MongoBillboardReader implements BillboardReader {
         Movie movie = MovieDocumentMapper.toMovie(first(row, "movie"));
         Room room = RoomDocumentMapper.toRoom(first(row, "room"));
         Showtime showtime = ShowtimeDocumentMapper.toShowtime(row);
-        MovieDetails details = movie.details();
         return new BillboardEntry(
-                new BillboardMovie(movie.id(), details.title(), details.synopsis(), details.durationMinutes(),
-                        details.genres(), details.classification(), details.posterUrl(), details.releaseDate()),
+                toPublicMovie(movie),
                 new BillboardRoom(room.id(), room.details().name(), room.details().capacity()),
                 new BillboardShowtime(showtime.id(), showtime.interval().start(), showtime.interval().end(),
                         showtime.priceCents(), showtime.audioLanguage(), showtime.subtitleLanguage()));
+    }
+
+    /** The public data of a movie, shared by the billboard and the movie search (ADR-041, ADR-044). */
+    static BillboardMovie toPublicMovie(Movie movie) {
+        MovieDetails details = movie.details();
+        return new BillboardMovie(movie.id(), details.title(), details.synopsis(), details.durationMinutes(),
+                details.genres(), details.classification(), details.posterUrl(), details.releaseDate());
     }
 
     /** A {@code $lookup} on a unique id yields an array of exactly one document once the match has kept it. */
