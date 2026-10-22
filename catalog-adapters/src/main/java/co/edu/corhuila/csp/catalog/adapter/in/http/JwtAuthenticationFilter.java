@@ -36,7 +36,8 @@ import org.springframework.web.filter.OncePerRequestFilter;
  * permission of the route is a 403. Both answer the error envelope and never echo the token.
  *
  * <p>The routes are closed unless a rule opens them: the public ones are those the contract declares with
- * {@code security: []} (the health checks and {@code GET /billboard}, whatever token it carries), every route under {@code /movies}, reads included, needs {@code catalog:write}, every
+ * {@code security: []} (the health checks, {@code GET /billboard} and {@code GET /billboard/movies}, whatever token
+ * they carry), every route under {@code /movies}, reads included, needs {@code catalog:write}, every
  * route under {@code /rooms} needs {@code room:write}, every route under {@code /showtimes} needs
  * {@code showtime:write} except the availability of a showtime, and a route with no rule is forbidden, so a
  * route added later cannot be open by omission.
@@ -56,8 +57,8 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
 
     private static final String BEARER = "Bearer ";
     private static final Set<String> PUBLIC_PATHS = Set.of("/health", "/health/ready");
-    /** The one public read of the contract besides the health checks: no token is needed and a sent one is ignored. */
-    private static final String PUBLIC_BILLBOARD = "/billboard";
+    /** The public reads of the contract besides the health checks: no token is needed and a sent one is ignored. */
+    private static final Set<String> PUBLIC_BILLBOARD_PATHS = Set.of("/billboard", "/billboard/movies");
     /** The permission that every route under a prefix needs: the routes of a resource and nothing else. */
     private static final Map<String, String> PERMISSION_BY_ROUTE =
             Map.of("/movies", "catalog:write", "/rooms", "room:write", "/showtimes", "showtime:write");
@@ -128,7 +129,7 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
     }
 
     private static boolean isPublicBillboardRead(HttpServletRequest request, String path) {
-        return PUBLIC_BILLBOARD.equals(path) && HttpMethod.GET.matches(request.getMethod());
+        return PUBLIC_BILLBOARD_PATHS.contains(path) && HttpMethod.GET.matches(request.getMethod());
     }
 
     private static boolean isAllowed(String path, List<String> permissions) {
