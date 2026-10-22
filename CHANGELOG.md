@@ -7,7 +7,7 @@ introduces it.
 
 ## [3.0.0] - 2026-10-21
 
-HU-CATALOG-001, HU-CATALOG-002, HU-CATALOG-003 and the base scaffold of the service promoted from `qa` to `main`.
+HU-CATALOG-001, HU-CATALOG-002, HU-CATALOG-003, HU-CATALOG-004 and the base scaffold of the service promoted from `qa` to `main`.
 
 ### Added
 - Public billboard route (HU-CATALOG-004, ADR-041): `BillboardController` serves `GET /billboard` with the `date`,
