@@ -7,7 +7,7 @@ introduces it.
 
 ## [3.0.0] - 2026-10-21
 
-HU-CATALOG-001, HU-CATALOG-002 and the base scaffold of the service promoted from `qa` to `main`.
+HU-CATALOG-001, HU-CATALOG-002, HU-CATALOG-003 and the base scaffold of the service promoted from `qa` to `main`.
 
 ### Added
 - Showtime routes (HU-CATALOG-003, ADR-039): `ShowtimeController` serves `POST`, `GET`, `PATCH` and `DELETE` on
