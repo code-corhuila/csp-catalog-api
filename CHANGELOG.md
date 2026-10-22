@@ -6,6 +6,12 @@ introduces it.
 ## [Unreleased]
 
 ### Added
+- Public movie search route (HU-CATALOG-006, ADR-044): `MovieSearchController` serves `GET /billboard/movies` with the
+  `q`, `genre`, `durationMax`, `page` and `limit` of `catalog-service.yaml` and answers the public `BillboardMovie` with
+  the `PaginatedMeta`; a malformed filter is a 400. The security filter opens only the exact GET of the route, like
+  `GET /billboard`, whatever token it carries, and `GET /movies` keeps `catalog:write`. `UseCaseConfiguration` wires
+  `MongoMovieSearchReader` and `MovieSearchService`; `MovieSearchRoutesContractTest` validates the route against the
+  contract.
 - MongoDB reader of the movie search (HU-CATALOG-006, ADR-044): `MongoMovieSearchReader` implements `MovieSearchReader` with one
   query on `movies`: published and not archived movies, a `$text` query that requires every word of the text as a quoted
   phrase of letters and digits (so a hyphen or a quote is never search syntax), the exact genre, the maximum duration,
