@@ -7,7 +7,7 @@ introduces it.
 
 ## [3.0.0] - 2026-10-21
 
-HU-CATALOG-001, HU-CATALOG-002, HU-CATALOG-003, HU-CATALOG-004, HU-CATALOG-005 and the base scaffold of the service promoted from `qa` to `main`.
+HU-CATALOG-001, HU-CATALOG-002, HU-CATALOG-003, HU-CATALOG-004, HU-CATALOG-005, HU-CATALOG-006 and the base scaffold of the service promoted from `qa` to `main`.
 
 ### Added
 - Public movie search route (HU-CATALOG-006, ADR-044): `MovieSearchController` serves `GET /billboard/movies` with the
