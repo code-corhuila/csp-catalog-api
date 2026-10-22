@@ -10,6 +10,12 @@ introduces it.
 HU-CATALOG-001, HU-CATALOG-002, HU-CATALOG-003, HU-CATALOG-004, HU-CATALOG-005 and the base scaffold of the service promoted from `qa` to `main`.
 
 ### Added
+- Movie search use case of `catalog-core` (HU-CATALOG-006, ADR-044): `MovieSearchQuery` validates and normalizes the filters
+  (`q` trimmed, at most 100 characters and ignored when blank, `genre` not blank and at most 50 characters,
+  `durationMax` from 1, `page` from 1 and `limit` from 1 to 100) and gives the words of the text, the input port
+  `MovieSearchUseCases` and `MovieSearchService` answer a `MovieSearchPage` of the public `BillboardMovie` through the
+  output port `MovieSearchReader`, whose javadoc states the selection and order of the reader that follows. It has no
+  adapter and no route yet.
 - Availability route with the service credential (HU-CATALOG-005, ADR-042): `AvailabilityController` serves
   `GET /showtimes/{showtimeId}/availability` with the `AvailabilityResponse` of `catalog-service.yaml`. The security
   filter opens it only to a valid token whose `sub` is in `SERVICE_SUBJECTS` (comma separated, default
