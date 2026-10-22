@@ -6,6 +6,15 @@ introduces it.
 ## [Unreleased]
 
 ### Added
+- Public billboard route (HU-CATALOG-004, ADR-041): `BillboardController` serves `GET /billboard` with the `date`,
+  `movieId`, `page` and `limit` parameters and the `BillboardItem` DTOs of `catalog-service.yaml`, and a malformed
+  parameter is a 400. The security filter opens only `GET /billboard` and ignores any token sent to it; every other
+  method and route keeps today's rules. `UseCaseConfiguration` wires `MongoBillboardReader` and `BillboardService`;
+  `BillboardRoutesContractTest` validates the route against the contract.
+- MongoDB billboard reader (HU-CATALOG-004, ADR-041): `MongoBillboardReader` implements `BillboardReader` with one 
+  aggregation on `showtimes` that keeps the scheduled, not yet ended showtimes of a published, not archived movie 
+  in a not archived room, filters by UTC start day and movie, orders by start and id, and returns the window with 
+  its total.
 - Billboard use case of `catalog-core` (HU-CATALOG-004, ADR-041): the input port `BillboardUseCases` with 
   `BillboardQuery`, the output port `BillboardReader` with the read model `BillboardPage`, `BillboardEntry`, 
   `BillboardMovie`, `BillboardRoom` and `BillboardShowtime`, and `BillboardService`, which asks the reader for the 

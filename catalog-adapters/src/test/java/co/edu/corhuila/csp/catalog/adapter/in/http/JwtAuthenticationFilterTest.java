@@ -186,6 +186,37 @@ class JwtAuthenticationFilterTest {
     }
 
     @Test
+    void theBillboardIgnoresATokenThatIsSentWhateverItIs() throws Exception {
+        assertTrue(call("GET", "/billboard", "Bearer not-a-jwt").chained());
+        assertTrue(call("GET", "/billboard", "Bearer " + TestTokens.hs256(WRITER)).chained());
+        assertTrue(call("GET", "/billboard", "Bearer " + TestTokens.signedByAnotherKey(WRITER)).chained());
+        assertTrue(call("GET", "/billboard", "Bearer " + TestTokens.rs256(
+                TestTokens.claims(TestTokens.SUBJECT, WRITER, TestTokens.anHourAgo()).build())).chained());
+        assertTrue(call("GET", "/billboard", "Basic dXNlcjpwYXNz").chained());
+        assertTrue(call("GET", "/billboard", "Bearer " + TestTokens.valid(READER)).chained());
+        assertTrue(call("GET", "/billboard", "Bearer " + TestTokens.valid(List.of())).chained());
+    }
+
+    @Test
+    void onlyTheReadOfTheExactBillboardRouteIsPublic() throws Exception {
+        for (String method : List.of("POST", "PUT", "PATCH", "DELETE")) {
+            assertRejected(call(method, "/billboard", null), 401, "UNAUTHORIZED");
+            assertRejected(call(method, "/billboard", "Bearer " + TestTokens.valid(WRITER)), 403, "FORBIDDEN");
+        }
+        assertRejected(call("GET", "/billboardx", null), 401, "UNAUTHORIZED");
+        assertRejected(call("POST", "/billboardx", null), 401, "UNAUTHORIZED");
+        assertRejected(call("GET", "/billboard/extra", null), 401, "UNAUTHORIZED");
+        assertRejected(post("/billboardx", TestTokens.valid(WRITER)), 403, "FORBIDDEN");
+    }
+
+    @Test
+    void theOtherRoutesStayClosedToAnAnonymousCaller() throws Exception {
+        assertRejected(call("GET", "/movies", null), 401, "UNAUTHORIZED");
+        assertRejected(call("GET", "/rooms", null), 401, "UNAUTHORIZED");
+        assertRejected(call("GET", "/showtimes", null), 401, "UNAUTHORIZED");
+    }
+
+    @Test
     void aRequestWithoutTokenIsUnauthorized() throws Exception {
         Outcome outcome = call("GET", "/movies", null);
 
