@@ -2,6 +2,12 @@ name: CI
 
 # Every Pull Request builds the repository and runs its tests on a clean machine.
 # "It works on my computer" is not evidence; a green check here is.
+#
+# The integration and contract tests refuse to be skipped when CI is set, so the job gives them what they need: a MongoDB
+# that behaves like the instance of csp-infra-mongo (authentication, key file, replica set of one node), the structure of
+# csp-catalog-db applied by its own executor as catalog_migrator, and the official contract of csp-docs. The tests then run
+# as catalog_app, which holds only the role catalog_writer (ADR-049), so a privilege the API needs and does not have fails here.
+# The passwords below are throwaways of a disposable container, not secrets.
 
 on:
   pull_request:
@@ -18,12 +24,72 @@ concurrency:
 jobs:
   build-and-test:
     runs-on: ubuntu-latest
-    timeout-minutes: 15
+    timeout-minutes: 20
+    env:
+      MONGO: catalog-ci-mongo
     steps:
       - uses: actions/checkout@v4
+
+      - name: Check out the database repository at the branch this pull request targets
+        uses: actions/checkout@v4
+        with:
+          repository: code-corhuila/csp-catalog-db
+          ref: ${{ github.base_ref || 'develop' }}
+          path: csp-catalog-db
+
+      - name: Check out the contract
+        uses: actions/checkout@v4
+        with:
+          repository: code-corhuila/csp-docs
+          ref: main
+          path: csp-docs
+
+      - name: Start MongoDB with authentication, a key file and a replica set of one node
+        run: |
+          docker run -d --name "$MONGO" -p 27017:27017 \
+            -e MONGO_INITDB_ROOT_USERNAME=ci_admin -e MONGO_INITDB_ROOT_PASSWORD=ci-admin-password \
+            --entrypoint sh mongo:7.0.14 -c "printf '%s' 'cikeyfile0123456789abcdefghijklmnopqrstuvwxyz' > /data/keyfile && chmod 400 /data/keyfile && chown mongodb:mongodb /data/keyfile && exec docker-entrypoint.sh mongod --replSet rs0 --keyFile /data/keyfile --bind_ip_all"
+          admin() { docker exec "$MONGO" mongosh --quiet -u ci_admin -p ci-admin-password --authenticationDatabase admin --eval "$1"; }
+          for i in $(seq 1 40); do
+            state=$(admin "try { rs.status().myState } catch (e) { rs.initiate({_id:'rs0',members:[{_id:0,host:'localhost:27017'}]}); 0 }" 2>&1 | tail -1)
+            [ "$state" = "1" ] && break
+            sleep 3
+          done
+          test "$state" = "1" || { echo "the replica set did not reach PRIMARY"; exit 1; }
+
+      - name: Create the logins as csp-infra-mongo does
+        # The owner for the executor, the login of the API with no role and the login of the relay, in catalog_db.
+        run: |
+          docker exec "$MONGO" mongosh --quiet -u ci_admin -p ci-admin-password --authenticationDatabase admin --eval "
+            const d = db.getSiblingDB('catalog_db');
+            d.createUser({user: 'catalog_migrator', pwd: 'ci-migrator-password', roles: [{role: 'dbOwner', db: 'catalog_db'}]});
+            d.createUser({user: 'catalog_app', pwd: 'ci-app-password', roles: []});
+            d.createUser({user: 'worker_app', pwd: 'ci-worker-password', roles: []});"
+
+      - name: Apply the structure of csp-catalog-db as catalog_migrator
+        # The executor shares the network of the MongoDB container, so the replica set member localhost:27017 resolves.
+        run: |
+          docker build -f csp-catalog-db/deploy/liquibase.Dockerfile -t catalog-db-migrate:ci csp-catalog-db/deploy
+          docker run --rm --network "container:$MONGO" -v "$PWD/csp-catalog-db:/workspace:ro" --entrypoint liquibase catalog-db-migrate:ci \
+            --search-path=/workspace \
+            --changelog-file=changelog/changelog-master.yaml \
+            --database-changelog-table-name=databasechangelog_catalog \
+            --database-changelog-lock-table-name=databasechangeloglock_catalog \
+            "--url=mongodb://localhost:27017/catalog_db?replicaSet=rs0" \
+            --username=catalog_migrator --password=ci-migrator-password update
+
       - uses: actions/setup-java@v4
         with:
           distribution: temurin
           java-version: '21'
           cache: maven
-      - run: mvn -B verify
+
+      - name: Build and test as catalog_app
+        env:
+          TEST_MONGODB_URI: mongodb://catalog_app:ci-app-password@localhost:27017/catalog_db?replicaSet=rs0&authSource=catalog_db
+          TEST_CONTRACT_FILE: ${{ github.workspace }}/csp-docs/07-api/contracts/openapi/catalog-service.yaml
+        run: mvn -B verify
+
+      - name: Remove the MongoDB container
+        if: always()
+        run: docker rm -f "$MONGO"
