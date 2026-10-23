@@ -13,6 +13,8 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 
 import co.edu.corhuila.csp.catalog.application.port.in.AvailabilityUseCases;
 import co.edu.corhuila.csp.catalog.application.port.out.ShowtimeAvailability;
+import co.edu.corhuila.csp.catalog.domain.model.Seat;
+import co.edu.corhuila.csp.catalog.domain.model.SeatType;
 import co.edu.corhuila.csp.catalog.domain.model.ShowtimeNotFoundException;
 import com.fasterxml.jackson.databind.SerializationFeature;
 import com.fasterxml.jackson.databind.json.JsonMapper;
@@ -44,7 +46,8 @@ class AvailabilityControllerTest {
 
     private static ShowtimeAvailability availability() {
         return new ShowtimeAvailability(ID, "Synthetic Movie", "Synthetic Room", STARTS, ENDS, 1500,
-                List.of("B2", "A1", "A2"));
+                List.of(new Seat("B2", "B", 2, SeatType.VIP), new Seat("A1", "A", 1, SeatType.STANDARD),
+                        new Seat("A2", null, null, SeatType.ACCESSIBLE)));
     }
 
     @Test
@@ -68,7 +71,7 @@ class AvailabilityControllerTest {
         when(useCases.getAvailability(ID)).thenReturn(availability());
 
         mvc.perform(get("/showtimes/" + ID + "/availability"))
-                .andExpect(jsonPath("$.length()").value(7));
+                .andExpect(jsonPath("$.length()").value(8));
     }
 
     @Test
@@ -92,6 +95,32 @@ class AvailabilityControllerTest {
     }
 
     @Test
+    void theSeatLayoutHasTheLabelTheRowTheNumberAndTheTypeOfEverySeatInOrder() throws Exception {
+        when(useCases.getAvailability(ID)).thenReturn(availability());
+
+        mvc.perform(get("/showtimes/" + ID + "/availability"))
+                .andExpect(jsonPath("$.seatLayout.length()").value(3))
+                .andExpect(jsonPath("$.seatLayout[0].label").value("B2"))
+                .andExpect(jsonPath("$.seatLayout[0].row").value("B"))
+                .andExpect(jsonPath("$.seatLayout[0].number").value(2))
+                .andExpect(jsonPath("$.seatLayout[0].type").value("VIP"))
+                .andExpect(jsonPath("$.seatLayout[1].label").value("A1"))
+                .andExpect(jsonPath("$.seatLayout[1].type").value("STANDARD"))
+                .andExpect(jsonPath("$.seatLayout[2].label").value("A2"))
+                .andExpect(jsonPath("$.seatLayout[2].type").value("ACCESSIBLE"));
+    }
+
+    @Test
+    void aSeatWithNoRowOrNumberLeavesThoseFieldsOutNeverNull() throws Exception {
+        when(useCases.getAvailability(ID)).thenReturn(availability());
+
+        mvc.perform(get("/showtimes/" + ID + "/availability"))
+                .andExpect(jsonPath("$.seatLayout[2].row").doesNotExist())
+                .andExpect(jsonPath("$.seatLayout[2].number").doesNotExist())
+                .andExpect(jsonPath("$.seatLayout[2].length()").value(2));
+    }
+
+    @Test
     void aRoomWithoutSeatsAnswersAnEmptyList() throws Exception {
         when(useCases.getAvailability(ID)).thenReturn(
                 new ShowtimeAvailability(ID, "Synthetic Movie", "Synthetic Room", STARTS, ENDS, 0, List.of()));
@@ -99,7 +128,8 @@ class AvailabilityControllerTest {
         mvc.perform(get("/showtimes/" + ID + "/availability"))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.price").value(0))
-                .andExpect(jsonPath("$.seats.length()").value(0));
+                .andExpect(jsonPath("$.seats.length()").value(0))
+                .andExpect(jsonPath("$.seatLayout.length()").value(0));
     }
 
     @Test

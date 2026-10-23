@@ -1,6 +1,7 @@
 package co.edu.corhuila.csp.catalog.app;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
@@ -110,7 +111,7 @@ class AvailabilityRoutesContractTest extends ContractTest {
 
         JsonNode answer = availabilityOf(showtimeId);
 
-        assertEquals(7, answer.size());
+        assertEquals(8, answer.size());
         assertEquals(showtimeId, answer.get("showtimeId").asText());
         assertEquals("Synthetic Movie", answer.get("movieTitle").asText());
         assertEquals("Synthetic Room", answer.get("roomName").asText());
@@ -119,6 +120,26 @@ class AvailabilityRoutesContractTest extends ContractTest {
         assertTrue(answer.get("price").isIntegralNumber());
         assertEquals(1500, answer.get("price").asLong());
         assertEquals(List.of("A1", "A2", "B1"), labels(answer));
+    }
+
+    @Test
+    void theSeatLayoutCarriesTheLabelTheRowTheNumberAndTheTypeOfEverySeatAndKeepsTheSeats() throws Exception {
+        String showtimeId = showtime(movie("Synthetic Movie"), room("Synthetic Room"));
+
+        JsonNode answer = availabilityOf(showtimeId);
+
+        JsonNode layout = answer.get("seatLayout");
+        assertEquals(3, layout.size());
+        assertEquals(labels(answer), List.of(layout.get(0).get("label").asText(), layout.get(1).get("label").asText(),
+                layout.get(2).get("label").asText()));
+        assertEquals("A", layout.get(0).get("row").asText());
+        assertEquals(1, layout.get(0).get("number").asInt());
+        assertEquals("STANDARD", layout.get(0).get("type").asText());
+        assertEquals("VIP", layout.get(1).get("type").asText());
+        assertFalse(layout.get(1).has("row"));
+        assertFalse(layout.get(1).has("number"));
+        assertEquals("B", layout.get(2).get("row").asText());
+        assertEquals("ACCESSIBLE", layout.get(2).get("type").asText());
     }
 
     @Test
