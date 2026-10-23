@@ -6,6 +6,10 @@ introduces it.
 ## [Unreleased]
 
 ### Added
+- Seat layout in the availability (HU-CATALOG-005, ADR-042 amendment 1, DEC-010): `AvailabilityResponse` adds `seatLayout`,
+  the seats of the room with `label`, `row`, `number` and `type` in stored order, so that Booking can serve the seat map;
+  `row` and `number` are left out when a seat has none. `ShowtimeAvailability` carries the layout and derives `seats` from
+  it, which is unchanged, like the security and the rules of ADR-042. Contract 1.9.0.
 - Public movie search route (HU-CATALOG-006, ADR-044): `MovieSearchController` serves `GET /billboard/movies` with the
   `q`, `genre`, `durationMax`, `page` and `limit` of `catalog-service.yaml` and answers the public `BillboardMovie` with
   the `PaginatedMeta`; a malformed filter is a 400. The security filter opens only the exact GET of the route, like
