@@ -10,6 +10,11 @@ introduces it.
 HU-CATALOG-001, HU-CATALOG-002, HU-CATALOG-003, HU-CATALOG-004, HU-CATALOG-005, HU-CATALOG-006 and the base scaffold of the service promoted from `qa` to `main`.
 
 ### Added
+- CI that gives the integration and contract tests what they need (`.github/workflows/ci.yml`): MongoDB 7.0.14 with authentication, a key file
+  and a replica set of one node, the logins of `csp-infra-mongo`, the structure of `csp-catalog-db` (at the branch the pull request targets)
+  applied by its own executor as `catalog_migrator`, and the contract of `csp-docs`. The tests run as `catalog_app`, which holds only
+  `catalog_writer` (ADR-049), so a privilege the API needs and lacks fails the build (TD-042). Before, `build-and-test` would fail
+  with `CI` set because nothing provided the database or the contract.
 - Seat layout in the availability (HU-CATALOG-005, ADR-042 amendment 1, DEC-010): `AvailabilityResponse` adds `seatLayout`,
   the seats of the room with `label`, `row`, `number` and `type` in stored order, so that Booking can serve the seat map;
   `row` and `number` are left out when a seat has none. `ShowtimeAvailability` carries the layout and derives `seats` from
