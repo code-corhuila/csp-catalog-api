@@ -121,3 +121,8 @@ HU-CATALOG-001, HU-CATALOG-002, HU-CATALOG-003, HU-CATALOG-004, HU-CATALOG-005, 
   writes. `UseCaseConfiguration` wires the use cases to the MongoDB repository. The routes are validated, request
   and answer, against `catalog-service.yaml` through the real stack, and the security filter reads the route from
   the servlet path and the path info.
+
+### Changed
+- README: describes the service as it is (HU-CATALOG-001 to HU-CATALOG-006) instead of the base scaffold: the routes and who may
+  call each one, the configuration variables, the variables of the integration and contract tests, and `qa-promote/...`
+  as the branch prefix of a promotion (ADR-021).
