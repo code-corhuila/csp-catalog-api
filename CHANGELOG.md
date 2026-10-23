@@ -5,6 +5,17 @@ introduces it.
 
 ## [Unreleased]
 
+### Changed
+- `deploy/compose.yml` passes the variables the service reads, so the platform can run it: `MONGODB_URI` built from `CATALOG_APP_PASSWORD`
+  (required), `MONGO_HOST` and `CATALOG_DB_NAME`, `JWT_PUBLIC_KEY` or `JWT_PUBLIC_KEY_FILE`, and `SERVICE_SUBJECTS` from
+  `CATALOG_SERVICE_SUBJECTS` (default `booking-service`; the platform env files already use `SERVICE_SUBJECTS` for `csp-worker`).
+  The README describes them.
+
+### Changed
+- README: describes the service as it is (HU-CATALOG-001 to HU-CATALOG-006) instead of the base scaffold: the routes and who may
+  call each one, the configuration variables, the variables of the integration and contract tests, and `qa-promote/...`
+  as the branch prefix of a promotion (ADR-021).
+
 ### Added
 - Seat layout in the availability (HU-CATALOG-005, ADR-042 amendment 1, DEC-010): `AvailabilityResponse` adds `seatLayout`,
   the seats of the room with `label`, `row`, `number` and `type` in stored order, so that Booking can serve the seat map;
