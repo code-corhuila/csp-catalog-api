@@ -123,6 +123,10 @@ HU-CATALOG-001, HU-CATALOG-002, HU-CATALOG-003, HU-CATALOG-004, HU-CATALOG-005, 
   the servlet path and the path info.
 
 ### Changed
+- `deploy/compose.yml` passes the variables the service reads, so the platform can run it: `MONGODB_URI` built from `CATALOG_APP_PASSWORD`
+  (required), `MONGO_HOST` and `CATALOG_DB_NAME`, `JWT_PUBLIC_KEY` or `JWT_PUBLIC_KEY_FILE`, and `SERVICE_SUBJECTS` from
+  `CATALOG_SERVICE_SUBJECTS` (default `booking-service`; the platform env files already use `SERVICE_SUBJECTS` for `csp-worker`).
+  The README describes them.
 - README: describes the service as it is (HU-CATALOG-001 to HU-CATALOG-006) instead of the base scaffold: the routes and who may
   call each one, the configuration variables, the variables of the integration and contract tests, and `qa-promote/...`
   as the branch prefix of a promotion (ADR-021).

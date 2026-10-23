@@ -51,7 +51,12 @@ The variables are listed in `.env.example`; copy it to `.env` for local values a
 | `SERVICE_SUBJECTS` | `sub` values of the service tokens allowed to read the availability, comma separated; absent: `booking-service`; present but empty: nobody |
 
 The pool and the timeouts of the MongoDB client are declared in `catalog-app/src/main/resources/application.yml`
-(Norma 5.3.10). `deploy/compose.yml` declares only `PORT`: the other variables must come from the environment.
+(Norma 5.3.10).
+
+In the platform, `deploy/compose.yml` builds the values of the service from the variables of the platform env files: `MONGODB_URI` from
+`CATALOG_APP_PASSWORD` (required: compose refuses to start without it; it travels inside the URI, so use characters that need
+no escaping), `MONGO_HOST` and `CATALOG_DB_NAME`; `JWT_PUBLIC_KEY` or `JWT_PUBLIC_KEY_FILE`; and `SERVICE_SUBJECTS` from
+`CATALOG_SERVICE_SUBJECTS` (default `booking-service`), because the platform already uses `SERVICE_SUBJECTS` for `csp-worker`.
 
 ## Stack
 
