@@ -5,6 +5,11 @@ introduces it.
 
 ## [Unreleased]
 
+### Changed
+- README: describes the service as it is (HU-CATALOG-001 to HU-CATALOG-006) instead of the base scaffold: the routes and who may
+  call each one, the configuration variables, the variables of the integration and contract tests, and `qa-promote/...`
+  as the branch prefix of a promotion (ADR-021).
+
 ### Added
 - Seat layout in the availability (HU-CATALOG-005, ADR-042 amendment 1, DEC-010): `AvailabilityResponse` adds `seatLayout`,
   the seats of the room with `label`, `row`, `number` and `type` in stored order, so that Booking can serve the seat map;
