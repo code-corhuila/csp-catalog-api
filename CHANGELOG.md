@@ -17,6 +17,9 @@ introduces it.
   as the branch prefix of a promotion (ADR-021).
 
 ### Added
+- `scripts/seed-dev.sh` (development only): creates a published movie, a room whose seats have row and number, a room whose seats
+  do not, and a scheduled showtime in each, through the API of the running platform, prints their ids and can be run again
+  without duplicating anything; the README describes it.
 - Seat layout in the availability (HU-CATALOG-005, ADR-042 amendment 1, DEC-010): `AvailabilityResponse` adds `seatLayout`,
   the seats of the room with `label`, `row`, `number` and `type` in stored order, so that Booking can serve the seat map;
   `row` and `number` are left out when a seat has none. `ShowtimeAvailability` carries the layout and derives `seats` from
