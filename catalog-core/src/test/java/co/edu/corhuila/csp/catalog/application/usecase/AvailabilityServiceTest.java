@@ -66,6 +66,10 @@ class AvailabilityServiceTest {
         return Room.create(ROOM_ID, new RoomDetails(name, seats), NOW);
     }
 
+    private static Room roomOf(String name, Seat... seats) {
+        return Room.create(ROOM_ID, new RoomDetails(name, List.of(seats)), NOW);
+    }
+
     private void available() {
         showtimes.stored.put(ID, showtime(ShowtimeStatus.SCHEDULED));
         movies.stored.put(MOVIE_ID, movie("Current Title", PublicationStatus.PUBLISHED));
@@ -105,6 +109,42 @@ class AvailabilityServiceTest {
         available();
 
         assertEquals(List.of("B2", "A1", "A2"), service.getAvailability(ID).seats());
+    }
+
+    @Test
+    void theSeatLayoutHasTheLabelTheRowTheNumberAndTheTypeOfEverySeatInTheOrderTheyAreStored() {
+        available();
+        rooms.stored.put(ROOM_ID, roomOf("Current Room",
+                new Seat("B1", "B", 1, SeatType.VIP),
+                new Seat("A1", "A", 1, SeatType.STANDARD),
+                new Seat("A2", "A", 2, SeatType.ACCESSIBLE)));
+
+        assertEquals(List.of(
+                new Seat("B1", "B", 1, SeatType.VIP),
+                new Seat("A1", "A", 1, SeatType.STANDARD),
+                new Seat("A2", "A", 2, SeatType.ACCESSIBLE)), service.getAvailability(ID).seatLayout());
+    }
+
+    @Test
+    void aSeatWithNoRowOrNumberKeepsThemAbsentAndKeepsItsType() {
+        available();
+        rooms.stored.put(ROOM_ID, roomOf("Current Room", new Seat("A1", null, null, SeatType.VIP), new Seat("A2", null, null, null)));
+
+        List<Seat> layout = service.getAvailability(ID).seatLayout();
+
+        assertEquals(null, layout.get(0).row());
+        assertEquals(null, layout.get(0).number());
+        assertEquals(SeatType.VIP, layout.get(0).type());
+        assertEquals(SeatType.STANDARD, layout.get(1).type());
+    }
+
+    @Test
+    void theSeatsAreAlwaysTheLabelsOfTheSeatLayout() {
+        available();
+
+        ShowtimeAvailability availability = service.getAvailability(ID);
+
+        assertEquals(availability.seatLayout().stream().map(Seat::label).toList(), availability.seats());
     }
 
     @Test

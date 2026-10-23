@@ -8,7 +8,6 @@ import co.edu.corhuila.csp.catalog.application.port.out.ShowtimeRepository;
 import co.edu.corhuila.csp.catalog.domain.model.Movie;
 import co.edu.corhuila.csp.catalog.domain.model.PublicationStatus;
 import co.edu.corhuila.csp.catalog.domain.model.Room;
-import co.edu.corhuila.csp.catalog.domain.model.Seat;
 import co.edu.corhuila.csp.catalog.domain.model.Showtime;
 import co.edu.corhuila.csp.catalog.domain.model.ShowtimeNotFoundException;
 import java.util.UUID;
@@ -43,7 +42,7 @@ public class AvailabilityService implements AvailabilityUseCases {
                 .orElseThrow(() -> new ShowtimeNotFoundException(showtimeId));
         return new ShowtimeAvailability(showtime.id(), showtime.movieTitleSnapshot(), showtime.roomNameSnapshot(),
                 showtime.interval().start(), showtime.interval().end(), showtime.priceCents(),
-                room.details().seats().stream().map(Seat::label).toList());
+                room.details().seats());
     }
 
     private static boolean isPublished(Movie movie) {
