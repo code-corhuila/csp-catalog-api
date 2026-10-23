@@ -118,6 +118,15 @@ The log ends with `Started CatalogApplication` when the service is up. In the pl
 the executor of `csp-catalog-db` and the platform composition includes `deploy/compose.yml`, which exposes the port on
 the `platform` network without publishing it: only the gateway reaches the service.
 
+## Development data
+
+`./scripts/seed-dev.sh` creates synthetic data through the API of the running platform, so that Booking or a portal can be tried
+against the real Catalog: one published movie, a room whose seats have row and number, a room whose seats do not, and one
+scheduled showtime in each room. It prints the three ids; read the availability of a showtime with a service token
+(`csp-infra-postgres/scripts/dev-token.sh booking-service 60`). It signs an administrator token with the development private
+key of `csp-infra-postgres` (`keys/jwt-private.pem`, or `JWT_PRIVATE_KEY_FILE`), calls the API from inside its container, and can
+be run again: what already exists is reused. It is for development only and needs `docker`, `openssl` and `python`.
+
 ## Branching
 
 Three permanent branches. **None of them accepts a direct commit** — you enter through a child
