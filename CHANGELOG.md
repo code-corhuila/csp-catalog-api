@@ -5,6 +5,11 @@ introduces it.
 
 ## [Unreleased]
 
+### Fixed
+- The token validation tolerates 30 seconds of clock skew on `exp` (Norma 5.3.7): a token that expired up to 30 s ago is accepted on every route,
+  the availability of a showtime included, and one that expired earlier is still a 401. Four tests of `JwtAuthenticationFilterTest` cover the
+  edges (code-corhuila/csp-catalog-api#91, part of the consumer guide code-corhuila/csp-docs#266).
+
 ## [3.0.0] - 2026-10-21
 
 HU-CATALOG-001, HU-CATALOG-002, HU-CATALOG-003, HU-CATALOG-004, HU-CATALOG-005, HU-CATALOG-006 and the base scaffold of the service promoted from `qa` to `main`.
