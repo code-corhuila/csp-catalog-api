@@ -308,6 +308,45 @@ class JwtAuthenticationFilterTest {
                 TestTokens.claims(TestTokens.SUBJECT, WRITER, null).build())), 401, "INVALID_TOKEN");
     }
 
+    private static Date secondsAgo(int seconds) {
+        return new Date(System.currentTimeMillis() - seconds * 1000L);
+    }
+
+    @Test
+    void aTokenThatExpiredAFewSecondsAgoIsStillAcceptedBecauseOfTheClockSkew() throws Exception {
+        Outcome outcome = post("/movies", TestTokens.rs256(
+                TestTokens.claims(TestTokens.SUBJECT, WRITER, secondsAgo(10)).build()));
+
+        assertTrue(outcome.chained());
+    }
+
+    @Test
+    void aTokenThatExpiredJustInsideTheThirtySecondsOfSkewIsAccepted() throws Exception {
+        Outcome outcome = post("/movies", TestTokens.rs256(
+                TestTokens.claims(TestTokens.SUBJECT, WRITER, secondsAgo(25)).build()));
+
+        assertTrue(outcome.chained());
+    }
+
+    @Test
+    void aTokenThatExpiredBeyondTheThirtySecondsOfSkewIsInvalid() throws Exception {
+        assertRejected(post("/movies", TestTokens.rs256(
+                TestTokens.claims(TestTokens.SUBJECT, WRITER, secondsAgo(40)).build())), 401, "INVALID_TOKEN");
+        assertRejected(post("/movies", TestTokens.rs256(
+                TestTokens.claims(TestTokens.SUBJECT, WRITER, secondsAgo(120)).build())), 401, "INVALID_TOKEN");
+    }
+
+    @Test
+    void theSkewAlsoAppliesToTheTokenOfAServiceOnTheAvailabilityRoute() throws Exception {
+        Outcome within = call("GET", AVAILABILITY, "Bearer " + TestTokens.rs256(
+                TestTokens.claims(SERVICE, List.of(), secondsAgo(10)).build()));
+        Outcome beyond = call("GET", AVAILABILITY, "Bearer " + TestTokens.rs256(
+                TestTokens.claims(SERVICE, List.of(), secondsAgo(40)).build()));
+
+        assertTrue(within.chained());
+        assertRejected(beyond, 401, "INVALID_TOKEN");
+    }
+
     @Test
     void aTokenWhoseSubjectIsMissingOrNotAUserIdIsInvalid() throws Exception {
         Date exp = TestTokens.inOneHour();

@@ -22,7 +22,7 @@ coherent.
 Every route lives under the context path `/api/v1/catalog`, which the service owns, so the same process works with
 and without the gateway. A missing or invalid token is a `401`; a valid token without the permission of the route is
 a `403`; a route with no rule is forbidden. Both answer the error envelope of the contract. Tokens are RS256 and the
-permission is read from the `permissions` claim (Norma 5.3.7).
+permission is read from the `permissions` claim (Norma 5.3.7); a token is still accepted up to 30 seconds after its `exp`, the clock skew the norm allows.
 
 | Routes | Who may call | Record |
 |---|---|---|

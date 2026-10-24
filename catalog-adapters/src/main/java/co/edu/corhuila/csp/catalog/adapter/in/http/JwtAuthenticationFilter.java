@@ -31,8 +31,8 @@ import org.springframework.web.filter.OncePerRequestFilter;
 /**
  * Authenticates and authorizes every request before a controller runs. The service validates the bearer
  * token by itself, as the norm demands (5.3.7): RS256 verified with the public key of the identity service,
- * any other algorithm rejected, {@code exp} and {@code sub} mandatory, {@code sub} the id of a user and
- * {@code permissions} a list of strings. A missing or invalid token is a 401; a valid one without the
+ * any other algorithm rejected, {@code exp} and {@code sub} mandatory ({@code exp} may be up to 30 seconds in the past,
+ * the clock skew the norm allows), {@code sub} the id of a user and {@code permissions} a list of strings. A missing or invalid token is a 401; a valid one without the
  * permission of the route is a 403. Both answer the error envelope and never echo the token.
  *
  * <p>The routes are closed unless a rule opens them: the public ones are those the contract declares with
@@ -56,6 +56,8 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
     public static final String USER_ID_ATTRIBUTE = "userId";
 
     private static final String BEARER = "Bearer ";
+    /** How long after its {@code exp} a token is still accepted, so that a small difference between clocks does not reject it (5.3.7). */
+    private static final long CLOCK_SKEW_MILLIS = 30_000;
     private static final Set<String> PUBLIC_PATHS = Set.of("/health", "/health/ready");
     /** The public reads of the contract besides the health checks: no token is needed and a sent one is ignored. */
     private static final Set<String> PUBLIC_BILLBOARD_PATHS = Set.of("/billboard", "/billboard/movies");
@@ -153,8 +155,8 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
             JWTClaimsSet claims = jwt.getJWTClaimsSet();
             Date expiresAt = claims.getExpirationTime();
             String subject = claims.getSubject();
-            if (expiresAt == null || !expiresAt.after(new Date())) {
-                logger.debug("rejected token: it has no exp claim or it has expired");
+            if (expiresAt == null || !expiresAt.after(new Date(System.currentTimeMillis() - CLOCK_SKEW_MILLIS))) {
+                logger.debug("rejected token: it has no exp claim or it expired more than the clock skew ago");
                 return Optional.empty();
             }
             if (subject == null || subject.isBlank()) {
