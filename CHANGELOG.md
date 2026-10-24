@@ -5,6 +5,11 @@ introduces it.
 
 ## [Unreleased]
 
+### Fixed
+- The token validation tolerates 30 seconds of clock skew on `exp` (Norma 5.3.7): a token that expired up to 30 s ago is accepted on every route,
+  the availability of a showtime included, and one that expired earlier is still a 401. Four tests of `JwtAuthenticationFilterTest` cover the
+  edges (code-corhuila/csp-catalog-api#91, part of the consumer guide code-corhuila/csp-docs#266).
+
 ### Changed
 - `deploy/compose.yml` passes the variables the service reads, so the platform can run it: `MONGODB_URI` built from `CATALOG_APP_PASSWORD`
   (required), `MONGO_HOST` and `CATALOG_DB_NAME`, `JWT_PUBLIC_KEY` or `JWT_PUBLIC_KEY_FILE`, and `SERVICE_SUBJECTS` from
