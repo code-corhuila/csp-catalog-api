@@ -1,5 +1,6 @@
 package co.edu.corhuila.csp.catalog.adapter.in.http;
 
+import co.edu.corhuila.csp.catalog.application.port.out.DependencyUnavailableException;
 import co.edu.corhuila.csp.catalog.application.port.out.IdempotencyKeyConflictException;
 import co.edu.corhuila.csp.catalog.application.port.out.RoomNameAlreadyInUseException;
 import co.edu.corhuila.csp.catalog.domain.model.InvalidMovieException;
@@ -127,9 +128,9 @@ public class ApiExceptionHandler {
         return answer(HttpStatus.UNPROCESSABLE_ENTITY, "INVALID_STATUS_TRANSITION", exception.getMessage());
     }
 
-    /** 503: the database cannot be reached or kept the transaction from starting. */
+    /** 503: the database cannot be reached or kept the transaction from starting, or readiness found a dependency down. */
     @ExceptionHandler({DataAccessResourceFailureException.class, TransientDataAccessException.class,
-            CannotCreateTransactionException.class})
+            CannotCreateTransactionException.class, DependencyUnavailableException.class})
     ResponseEntity<ErrorResponse> unavailable(HttpServletRequest request, Exception exception) {
         log.warn("dependency unavailable answering {} {}: {}", request.getMethod(), request.getRequestURI(),
                 exception.getClass().getSimpleName());
