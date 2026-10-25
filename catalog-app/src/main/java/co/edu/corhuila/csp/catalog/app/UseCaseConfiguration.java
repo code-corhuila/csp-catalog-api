@@ -1,6 +1,7 @@
 package co.edu.corhuila.csp.catalog.app;
 
 import co.edu.corhuila.csp.catalog.adapter.out.persistence.MongoBillboardReader;
+import co.edu.corhuila.csp.catalog.adapter.out.persistence.MongoDatabaseProbe;
 import co.edu.corhuila.csp.catalog.adapter.out.persistence.MongoMovieRepository;
 import co.edu.corhuila.csp.catalog.adapter.out.persistence.MongoMovieSearchReader;
 import co.edu.corhuila.csp.catalog.adapter.out.persistence.MongoRoomRepository;
@@ -9,9 +10,11 @@ import co.edu.corhuila.csp.catalog.application.port.in.AvailabilityUseCases;
 import co.edu.corhuila.csp.catalog.application.port.in.BillboardUseCases;
 import co.edu.corhuila.csp.catalog.application.port.in.MovieSearchUseCases;
 import co.edu.corhuila.csp.catalog.application.port.in.MovieUseCases;
+import co.edu.corhuila.csp.catalog.application.port.in.ReadinessUseCases;
 import co.edu.corhuila.csp.catalog.application.port.in.RoomUseCases;
 import co.edu.corhuila.csp.catalog.application.port.in.ShowtimeUseCases;
 import co.edu.corhuila.csp.catalog.application.port.out.BillboardReader;
+import co.edu.corhuila.csp.catalog.application.port.out.DatabaseProbe;
 import co.edu.corhuila.csp.catalog.application.port.out.MovieRepository;
 import co.edu.corhuila.csp.catalog.application.port.out.MovieSearchReader;
 import co.edu.corhuila.csp.catalog.application.port.out.RoomRepository;
@@ -20,6 +23,7 @@ import co.edu.corhuila.csp.catalog.application.usecase.AvailabilityService;
 import co.edu.corhuila.csp.catalog.application.usecase.BillboardService;
 import co.edu.corhuila.csp.catalog.application.usecase.MovieSearchService;
 import co.edu.corhuila.csp.catalog.application.usecase.MovieService;
+import co.edu.corhuila.csp.catalog.application.usecase.ReadinessService;
 import co.edu.corhuila.csp.catalog.application.usecase.RoomService;
 import co.edu.corhuila.csp.catalog.application.usecase.ShowtimeService;
 import java.time.Clock;
@@ -78,6 +82,16 @@ class UseCaseConfiguration {
     @Bean
     BillboardUseCases billboardUseCases(BillboardReader reader) {
         return new BillboardService(reader, Clock.systemUTC());
+    }
+
+    @Bean
+    DatabaseProbe databaseProbe(MongoTemplate mongo) {
+        return new MongoDatabaseProbe(mongo);
+    }
+
+    @Bean
+    ReadinessUseCases readinessUseCases(DatabaseProbe database) {
+        return new ReadinessService(database);
     }
 
     @Bean
