@@ -5,6 +5,11 @@ introduces it.
 
 ## [Unreleased]
 
+### Added
+- `GET /health` (liveness, no dependency) and `GET /health/ready` (readiness: a `ping` on MongoDB inside the limits of the client, `503` with the error
+  envelope when it does not answer), both public and validated against `catalog-service.yaml` 1.10.0 (DEC-012, code-corhuila/csp-catalog-api#95).
+  Until now both answered `404`.
+
 ### Fixed
 - The token validation tolerates 30 seconds of clock skew on `exp` (Norma 5.3.7): a token that expired up to 30 s ago is accepted on every route,
   the availability of a showtime included, and one that expired earlier is still a 401. Four tests of `JwtAuthenticationFilterTest` cover the
