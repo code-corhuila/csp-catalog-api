@@ -32,10 +32,11 @@ permission is read from the `permissions` claim (Norma 5.3.7); a token is still 
 | `GET /showtimes/{showtimeId}/availability` | A token whose `sub` is in `SERVICE_SUBJECTS`; any other valid token, a user with `showtime:write` included, is a `403` | ADR-042, DEC-008 |
 | `GET /billboard` | Public: no token is needed and a sent one is ignored | ADR-041, DEC-007 |
 | `GET /billboard/movies` | Public, as the billboard | ADR-044, DEC-009 |
+| `GET /health` | Public liveness: no dependency, `200` while the process runs | DEC-012 |
+| `GET /health/ready` | Public readiness: pings MongoDB, `503` when it does not answer | DEC-012 |
 
 `POST`, `PATCH` and `DELETE` of the three resources take the `Idempotency-Key` header (Norma 5.3.8). `DELETE`
-archives a movie or a room and cancels a showtime. `/health` and `/health/ready` are declared in the contract and the
-security filter lets them through, but no controller serves them yet, so they answer `404`.
+archives a movie or a room and cancels a showtime.
 
 The decisions are in `09-microservices/services/03-catalog-service/decisions.md` of `csp-docs`.
 
