@@ -6,6 +6,8 @@ introduces it.
 ## [Unreleased]
 
 ### Added
+- `deploy/compose.yml` declares the healthcheck of the container: `curl` on `GET /health/ready` every 15 s, 8 s of timeout, 3 retries and a 40 s
+  start period, so the service is healthy only while MongoDB answers (DEC-012, code-corhuila/csp-catalog-api#98).
 - `GET /health` (liveness, no dependency) and `GET /health/ready` (readiness: a `ping` on MongoDB inside the limits of the client, `503` with the error
   envelope when it does not answer), both public and validated against `catalog-service.yaml` 1.10.0 (DEC-012, code-corhuila/csp-catalog-api#95).
   Until now both answered `404`.

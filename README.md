@@ -58,6 +58,8 @@ In the platform, `deploy/compose.yml` builds the values of the service from the 
 `CATALOG_APP_PASSWORD` (required: compose refuses to start without it; it travels inside the URI, so use characters that need
 no escaping), `MONGO_HOST` and `CATALOG_DB_NAME`; `JWT_PUBLIC_KEY` or `JWT_PUBLIC_KEY_FILE`; and `SERVICE_SUBJECTS` from
 `CATALOG_SERVICE_SUBJECTS` (default `booking-service`), because the platform already uses `SERVICE_SUBJECTS` for `csp-worker`.
+The container has a healthcheck that calls `GET /health/ready`: it is healthy only while MongoDB answers the ping, unhealthy
+when it does not and healthy again when it returns; compose reports it and does not restart the container for it (DEC-012).
 
 ## Stack
 
