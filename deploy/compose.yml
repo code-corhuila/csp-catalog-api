@@ -20,6 +20,15 @@ services:
       # Subjects of the service tokens allowed to read the availability of a showtime (ADR-042), comma separated. The
       # platform env files already use SERVICE_SUBJECTS for csp-worker, so the value of this service comes from its own name.
       SERVICE_SUBJECTS: ${CATALOG_SERVICE_SUBJECTS:-booking-service}
+    # Healthy only while MongoDB answers the ping of GET /health/ready (DEC-012); compose reports it and does not restart
+    # the container for it. The timeout leaves room for the 503 that readiness answers after waiting up to 5 s for
+    # MongoDB (server selection, Norma 5.3.10). The path includes the context-path of application.yml. The JRE image ships curl.
+    healthcheck:
+      test: ["CMD", "curl", "-fsS", "http://localhost:8082/api/v1/catalog/health/ready"]
+      interval: 15s
+      timeout: 8s
+      retries: 3
+      start_period: 40s
     # expose, not ports: only the gateway is reachable from the host.
     expose: ["8082"]
     networks: [platform]
