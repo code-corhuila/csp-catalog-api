@@ -6,6 +6,10 @@ introduces it.
 ## [Unreleased]
 
 ### Added
+- Every call rejected on `GET /showtimes/{showtimeId}/availability` (no token, invalid token, or a valid token whose `sub` is not in
+  `SERVICE_SUBJECTS`) writes one INFO audit entry in the logger `co.edu.corhuila.csp.catalog.security.audit` with the `sub` (only of a valid token),
+  the source, the method, the route and the result, never the token; the correlation id comes from the MDC and the time from the log record
+  (`security-rules.md`; code-corhuila/csp-docs#288, STRIDE R of code-corhuila/csp-docs#286).
 - `deploy/compose.yml` declares the healthcheck of the container: `curl` on `GET /health/ready` every 15 s, 8 s of timeout, 3 retries and a 40 s
   start period, so the service is healthy only while MongoDB answers (DEC-012, code-corhuila/csp-catalog-api#98).
 - `GET /health` (liveness, no dependency) and `GET /health/ready` (readiness: a `ping` on MongoDB inside the limits of the client, `503` with the error

@@ -29,7 +29,7 @@ permission is read from the `permissions` claim (Norma 5.3.7); a token is still 
 | `POST`, `GET`, `GET /{movieId}`, `PATCH /{movieId}` and `DELETE /{movieId}` of `/movies` | A token with `catalog:write` | DEC-004 |
 | The same five routes of `/rooms` | A token with `room:write` | DEC-005 |
 | The same five routes of `/showtimes` | A token with `showtime:write` | DEC-006 |
-| `GET /showtimes/{showtimeId}/availability` | A token whose `sub` is in `SERVICE_SUBJECTS`; any other valid token, a user with `showtime:write` included, is a `403` | ADR-042, DEC-008 |
+| `GET /showtimes/{showtimeId}/availability` | A token whose `sub` is in `SERVICE_SUBJECTS`; any other valid token, a user with `showtime:write` included, is a `403`; every call rejected on it writes one audit entry (logger `co.edu.corhuila.csp.catalog.security.audit`: `sub` of a valid token, source, method, route and result, never the token) | ADR-042, DEC-008 |
 | `GET /billboard` | Public: no token is needed and a sent one is ignored | ADR-041, DEC-007 |
 | `GET /billboard/movies` | Public, as the billboard | ADR-044, DEC-009 |
 | `GET /health` | Public liveness: no dependency, `200` while the process runs | DEC-012 |

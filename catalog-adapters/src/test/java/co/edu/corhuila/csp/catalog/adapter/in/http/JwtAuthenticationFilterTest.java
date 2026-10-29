@@ -5,6 +5,10 @@ import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
+import ch.qos.logback.classic.Level;
+import ch.qos.logback.classic.Logger;
+import ch.qos.logback.classic.spi.ILoggingEvent;
+import ch.qos.logback.core.read.ListAppender;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import java.util.Date;
@@ -15,6 +19,7 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.ValueSource;
+import org.slf4j.LoggerFactory;
 import org.slf4j.MDC;
 import org.springframework.mock.web.MockFilterChain;
 import org.springframework.mock.web.MockHttpServletRequest;
@@ -52,6 +57,20 @@ class JwtAuthenticationFilterTest {
     @AfterEach
     void clearTheLog() {
         MDC.clear();
+    }
+
+    private ListAppender<ILoggingEvent> auditEntries;
+
+    @BeforeEach
+    void captureTheAuditLog() {
+        auditEntries = new ListAppender<>();
+        auditEntries.start();
+        ((Logger) LoggerFactory.getLogger(JwtAuthenticationFilter.AUDIT_LOGGER)).addAppender(auditEntries);
+    }
+
+    @AfterEach
+    void releaseTheAuditLog() {
+        ((Logger) LoggerFactory.getLogger(JwtAuthenticationFilter.AUDIT_LOGGER)).detachAppender(auditEntries);
     }
 
     private record Outcome(MockHttpServletRequest request, MockHttpServletResponse response, boolean chained) {
@@ -482,6 +501,78 @@ class JwtAuthenticationFilterTest {
         assertRejected(call("GET", AVAILABILITY + "x", service), 403, "FORBIDDEN");
         assertRejected(call("GET", AVAILABILITY + "/extra", service), 403, "FORBIDDEN");
         assertRejected(call("GET", "/showtimes/availability", service), 403, "FORBIDDEN");
+    }
+
+    private ILoggingEvent theOnlyAuditEntry() {
+        assertEquals(1, auditEntries.list.size(), "one rejected call leaves exactly one audit entry");
+        ILoggingEvent entry = auditEntries.list.get(0);
+        assertTrue(entry.getLevel().isGreaterOrEqual(Level.INFO));
+        assertTrue(Math.abs(System.currentTimeMillis() - entry.getTimeStamp()) < 60_000, "the entry is stamped when it is written");
+        return entry;
+    }
+
+    private static String entryOf(String subject, String method, int status, String error) {
+        return "availability call rejected: sub=" + subject + " source=127.0.0.1 method=" + method + " route=" + AVAILABILITY
+                + " result=" + status + " " + error;
+    }
+
+    @Test
+    void aCallWithoutTokenToTheAvailabilityLeavesOneAuditEntryWithoutSubject() throws Exception {
+        call("GET", AVAILABILITY, null);
+
+        assertEquals(entryOf("-", "GET", 401, "UNAUTHORIZED"), theOnlyAuditEntry().getFormattedMessage());
+    }
+
+    @Test
+    void anInvalidTokenOnTheAvailabilityLeavesOneAuditEntryWithoutSubjectAndWithoutTheToken() throws Exception {
+        String token = TestTokens.hs256(List.of());
+
+        availability(token);
+
+        ILoggingEvent entry = theOnlyAuditEntry();
+        assertEquals(entryOf("-", "GET", 401, "INVALID_TOKEN"), entry.getFormattedMessage());
+        assertFalse(entry.getFormattedMessage().contains(token));
+    }
+
+    @Test
+    void aSubjectThatIsNotAServiceOnTheAvailabilityLeavesOneAuditEntryWithItsSubjectAndWithoutTheToken() throws Exception {
+        String token = TestTokens.valid(ADMINISTRATOR);
+
+        availability(token);
+
+        ILoggingEvent entry = theOnlyAuditEntry();
+        assertEquals(entryOf(TestTokens.SUBJECT, "GET", 403, "FORBIDDEN"), entry.getFormattedMessage());
+        assertFalse(entry.getFormattedMessage().contains(token));
+    }
+
+    @Test
+    void aServiceTokenWithAnotherMethodOnTheAvailabilityLeavesOneAuditEntryWithTheServiceSubject() throws Exception {
+        call("POST", AVAILABILITY, "Bearer " + tokenOf(SERVICE, List.of()));
+
+        assertEquals(entryOf(SERVICE, "POST", 403, "FORBIDDEN"), theOnlyAuditEntry().getFormattedMessage());
+    }
+
+    @Test
+    void theAuditEntryCarriesTheCorrelationIdOfTheRequest() throws Exception {
+        call("GET", AVAILABILITY, null);
+
+        assertEquals(TRACE, theOnlyAuditEntry().getMDCPropertyMap().get(CorrelationIdFilter.TRACE_ID_MDC_KEY));
+    }
+
+    @Test
+    void anAcceptedCallToTheAvailabilityLeavesNoAuditEntry() throws Exception {
+        assertTrue(availability(tokenOf(SERVICE, List.of())).chained());
+
+        assertTrue(auditEntries.list.isEmpty());
+    }
+
+    @Test
+    void theRejectionsOfTheOtherRoutesLeaveNoAuditEntry() throws Exception {
+        call("GET", "/movies", null);
+        post("/movies", TestTokens.valid(READER));
+        call("GET", "/showtimes", "Bearer not-a-jwt");
+
+        assertTrue(auditEntries.list.isEmpty());
     }
 
     @Test
