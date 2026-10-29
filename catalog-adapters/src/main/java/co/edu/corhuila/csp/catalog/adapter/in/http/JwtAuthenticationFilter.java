@@ -20,6 +20,8 @@ import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
 import java.util.regex.Pattern;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.core.Ordered;
 import org.springframework.core.annotation.Order;
 import org.springframework.http.HttpMethod;
@@ -47,6 +49,9 @@ import org.springframework.web.filter.OncePerRequestFilter;
  * is one of them opens it, whatever its permissions, and any other valid token is a 403, a user or an
  * administrator with {@code showtime:write} included. The opposite also holds: the token of a service subject
  * opens no other route.
+ *
+ * <p>Every call rejected on that route, with any method, is audited: one INFO entry in {@link #AUDIT_LOGGER} says who
+ * (the {@code sub}, when the token was valid), from where, which route and what the answer was (code-corhuila/csp-docs#288).
  */
 @Component
 @Order(Ordered.HIGHEST_PRECEDENCE + 1)
@@ -54,6 +59,10 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
 
     /** Request attribute with the authenticated user: the {@code sub} of the token. */
     public static final String USER_ID_ATTRIBUTE = "userId";
+
+    /** Logger of the audit entries of the calls rejected on the availability route, so a deployment can route them apart. */
+    static final String AUDIT_LOGGER = "co.edu.corhuila.csp.catalog.security.audit";
+    private static final Logger AUDIT = LoggerFactory.getLogger(AUDIT_LOGGER);
 
     private static final String BEARER = "Bearer ";
     /** How long after its {@code exp} a token is still accepted, so that a small difference between clocks does not reject it (5.3.7). */
@@ -92,34 +101,38 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
         }
         String header = request.getHeader("Authorization");
         if (header == null || !header.regionMatches(true, 0, BEARER, 0, BEARER.length())) {
-            reject(response, HttpStatus.UNAUTHORIZED, "UNAUTHORIZED", "Authentication token required");
+            reject(request, path, null, response, HttpStatus.UNAUTHORIZED, "UNAUTHORIZED", "Authentication token required");
             return;
         }
         Optional<Caller> caller = authenticate(header.substring(BEARER.length()).trim());
         if (caller.isEmpty()) {
-            reject(response, HttpStatus.UNAUTHORIZED, "INVALID_TOKEN", "the token is invalid or expired");
+            reject(request, path, null, response, HttpStatus.UNAUTHORIZED, "INVALID_TOKEN", "the token is invalid or expired");
             return;
         }
         String subject = caller.get().subject();
         if (isAvailabilityRead(request, path)) {
             if (!serviceSubjects.contains(subject)) {
-                reject(response, HttpStatus.FORBIDDEN, "FORBIDDEN", "You are not authorized to perform this action");
+                reject(request, path, subject, response, HttpStatus.FORBIDDEN, "FORBIDDEN",
+                        "You are not authorized to perform this action");
                 return;
             }
             chain.doFilter(request, response);
             return;
         }
         if (serviceSubjects.contains(subject)) {
-            reject(response, HttpStatus.FORBIDDEN, "FORBIDDEN", "You are not authorized to perform this action");
+            reject(request, path, subject, response, HttpStatus.FORBIDDEN, "FORBIDDEN",
+                    "You are not authorized to perform this action");
             return;
         }
         if (!CorrelationIdFilter.UUID_PATTERN.matcher(subject).matches()) {
             logger.debug("rejected token: its sub is not the id of a user of this platform");
-            reject(response, HttpStatus.UNAUTHORIZED, "INVALID_TOKEN", "the token is invalid or expired");
+            reject(request, path, subject, response, HttpStatus.UNAUTHORIZED, "INVALID_TOKEN",
+                    "the token is invalid or expired");
             return;
         }
         if (!isAllowed(path, caller.get().permissions())) {
-            reject(response, HttpStatus.FORBIDDEN, "FORBIDDEN", "You are not authorized to perform this action");
+            reject(request, path, subject, response, HttpStatus.FORBIDDEN, "FORBIDDEN",
+                    "You are not authorized to perform this action");
             return;
         }
         request.setAttribute(USER_ID_ATTRIBUTE, subject);
@@ -169,6 +182,21 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
             logger.debug("rejected token: it is not a verifiable signed JWT");
             return Optional.empty();
         }
+    }
+
+    /**
+     * Rejects the request. A rejection on the availability route also leaves one audit entry with the subject
+     * (only of a token that passed every check, so a forged one cannot write it), the source, the method, the route
+     * and the result, never the token; the correlation id comes from the MDC and the time from the log (security-rules).
+     */
+    private void reject(HttpServletRequest request, String path, String subject, HttpServletResponse response,
+            HttpStatus status, String error, String message) throws IOException {
+        if (SHOWTIME_AVAILABILITY.matcher(path).matches()) {
+            AUDIT.info("availability call rejected: sub={} source={} method={} route={} result={} {}",
+                    subject == null ? "-" : subject, request.getRemoteAddr(), request.getMethod(), path,
+                    status.value(), error);
+        }
+        reject(response, status, error, message);
     }
 
     private void reject(HttpServletResponse response, HttpStatus status, String error, String message)
