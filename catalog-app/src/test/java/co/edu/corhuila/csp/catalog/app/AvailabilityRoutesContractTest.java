@@ -85,7 +85,7 @@ class AvailabilityRoutesContractTest extends ContractTest {
     }
 
     private static MockHttpServletRequestBuilder asService(String showtimeId) {
-        return availability(showtimeId, RsaTestKey.token(SERVICE, List.of()));
+        return availability(showtimeId, RsaTestKey.serviceToken(SERVICE, List.of()));
     }
 
     private JsonNode availabilityOf(String showtimeId) throws Exception {
@@ -202,22 +202,33 @@ class AvailabilityRoutesContractTest extends ContractTest {
     }
 
     @Test
-    void anAdministratorTokenAndATokenOfAnotherSubjectAreA403() throws Exception {
+    void aServiceCredentialOfAnotherSubjectIsA403() throws Exception {
         String showtimeId = showtime(movie("Synthetic Movie"), room("Synthetic Room"));
         List<String> administrator = List.of("showtime:write", "catalog:write", "room:write");
 
-        JsonNode byAdministrator = body(call(availability(showtimeId, RsaTestKey.token(administrator)), 403));
-        call(availability(showtimeId, RsaTestKey.token(List.of())), 403);
-        call(availability(showtimeId, RsaTestKey.token("payment-service", administrator)), 403);
-        call(availability(UUID.randomUUID().toString(), RsaTestKey.token(administrator)), 403);
+        JsonNode byAnotherService = body(call(availability(showtimeId, RsaTestKey.serviceToken("payment-service", administrator)), 403));
+        call(availability(showtimeId, RsaTestKey.serviceToken("payment-service", List.of())), 403);
+        call(availability(UUID.randomUUID().toString(), RsaTestKey.serviceToken("payment-service", administrator)), 403);
 
-        assertEquals("FORBIDDEN", byAdministrator.get("error").asText());
+        assertEquals("FORBIDDEN", byAnotherService.get("error").asText());
+    }
+
+    @Test
+    void aUsersAccessTokenIsNotAServiceCredentialSoItIsA401() throws Exception {
+        String showtimeId = showtime(movie("Synthetic Movie"), room("Synthetic Room"));
+        List<String> administrator = List.of("showtime:write", "catalog:write", "room:write");
+
+        JsonNode byAdministrator = body(call(availability(showtimeId, RsaTestKey.token(administrator)), 401));
+        call(availability(showtimeId, RsaTestKey.token(List.of())), 401);
+        call(availability(showtimeId, RsaTestKey.token(SERVICE, List.of())), 401);
+
+        assertEquals("INVALID_TOKEN", byAdministrator.get("error").asText());
     }
 
     @Test
     void aServiceTokenOpensNoOtherRoute() throws Exception {
         String showtimeId = showtime(movie("Synthetic Movie"), room("Synthetic Room"));
-        String service = RsaTestKey.token(SERVICE, List.of("showtime:write", "catalog:write", "room:write"));
+        String service = RsaTestKey.serviceToken(SERVICE, List.of("showtime:write", "catalog:write", "room:write"));
 
         call(get(BASE + "/showtimes").contextPath(BASE).header("Authorization", "Bearer " + service), 403);
         call(get(BASE + "/showtimes/" + showtimeId).contextPath(BASE).header("Authorization", "Bearer " + service), 403);
@@ -232,7 +243,7 @@ class AvailabilityRoutesContractTest extends ContractTest {
 
         availabilityOf(showtimeId);
         call(asService(UUID.randomUUID().toString()), 404);
-        call(availability(showtimeId, RsaTestKey.token(List.of())), 403);
+        call(availability(showtimeId, RsaTestKey.serviceToken("payment-service", List.of())), 403);
 
         assertEquals(before, counts());
         assertEquals(1, mongo.getCollection("outbox_event").countDocuments());
