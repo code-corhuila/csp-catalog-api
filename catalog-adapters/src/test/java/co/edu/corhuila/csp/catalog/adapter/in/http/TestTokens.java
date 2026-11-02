@@ -18,6 +18,9 @@ import java.util.List;
 final class TestTokens {
 
     static final String SUBJECT = "11111111-1111-4111-8111-111111111111";
+    static final String ISSUER = "csp-auth";
+    static final String SERVICE_AUDIENCE = "csp-internal";
+    static final String USER_AUDIENCE = "csp-api";
 
     private static final KeyPair KEYS = generate();
     private static final KeyPair OTHER_KEYS = generate();
@@ -41,6 +44,11 @@ final class TestTokens {
             builder.expirationTime(expiresAt);
         }
         return builder;
+    }
+
+    /** A service credential as `auth-token` issues it: the claims of ADR-052 that the service checks (ADR-056). */
+    static JWTClaimsSet.Builder serviceClaims(String subject, List<String> permissions, Date expiresAt) {
+        return claims(subject, permissions, expiresAt).issuer(ISSUER).audience(List.of(SERVICE_AUDIENCE));
     }
 
     static String valid(List<String> permissions) {
