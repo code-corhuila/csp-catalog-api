@@ -5,6 +5,13 @@ introduces it.
 
 ## [Unreleased]
 
+### Changed
+- The availability of a showtime (`GET /showtimes/{showtimeId}/availability`) now requires a service credential: `iss` `csp-auth` and an `aud` that
+  contains `csp-internal` (string or list), besides RS256, `exp`, `sub` and a `sub` in `SERVICE_SUBJECTS`. A token without them, a user's access token
+  (`aud` `csp-api`) included, is a `401` `INVALID_TOKEN` instead of the former `403`; a service credential of another `sub` stays a `403`. The claims are
+  checked only on that route. Deploy only after the service credentials are reissued with both claims (ADR-056, code-corhuila/csp-docs#287,
+  code-corhuila/csp-catalog-api#102).
+
 ### Added
 - Every call rejected on `GET /showtimes/{showtimeId}/availability` (no token, invalid token, or a valid token whose `sub` is not in
   `SERVICE_SUBJECTS`) writes one INFO audit entry in the logger `co.edu.corhuila.csp.catalog.security.audit` with the `sub` (only of a valid token),

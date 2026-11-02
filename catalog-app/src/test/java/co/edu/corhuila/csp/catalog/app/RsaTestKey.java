@@ -30,12 +30,26 @@ final class RsaTestKey {
     }
 
     static String token(String subject, List<String> permissions) {
+        return sign(new JWTClaimsSet.Builder()
+                .subject(subject)
+                .claim("permissions", permissions)
+                .expirationTime(new Date(System.currentTimeMillis() + 3_600_000))
+                .build());
+    }
+
+    /** A service credential as `auth-token` issues it: with the issuer and the audience that the service checks (ADR-056). */
+    static String serviceToken(String subject, List<String> permissions) {
+        return sign(new JWTClaimsSet.Builder()
+                .subject(subject)
+                .issuer("csp-auth")
+                .audience(List.of("csp-internal"))
+                .claim("permissions", permissions)
+                .expirationTime(new Date(System.currentTimeMillis() + 3_600_000))
+                .build());
+    }
+
+    private static String sign(JWTClaimsSet claims) {
         try {
-            JWTClaimsSet claims = new JWTClaimsSet.Builder()
-                    .subject(subject)
-                    .claim("permissions", permissions)
-                    .expirationTime(new Date(System.currentTimeMillis() + 3_600_000))
-                    .build();
             SignedJWT jwt = new SignedJWT(new JWSHeader(JWSAlgorithm.RS256), claims);
             jwt.sign(new RSASSASigner((RSAPrivateKey) KEYS.getPrivate()));
             return jwt.serialize();
