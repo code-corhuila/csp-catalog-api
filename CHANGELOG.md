@@ -18,6 +18,13 @@ introduces it.
   edges (code-corhuila/csp-catalog-api#91, part of the consumer guide code-corhuila/csp-docs#266).
 
 ### Changed
+- The service answers HTTPS only on its single port and no longer has a plain HTTP listener (ADR-067, code-corhuila/csp-docs#289). It serves the
+  certificate chain and the private key of `CATALOG_TLS_CERTIFICATE_FILE` and `CATALOG_TLS_PRIVATE_KEY_FILE` through a Spring Boot SSL bundle with
+  reload on update, and it does not start without both files (fail closed). The healthcheck of `deploy/compose.yml` is now `curl --cacert` on
+  `https://localhost:8082/api/v1/catalog/health/ready`, with `CATALOG_TLS_CA_FILE`; compose refuses to start without the three variables.
+  Deploy together with the CA and the certificate of `csp-infra-postgres`, the HTTPS upstream of `csp-api-gateway` and the truststore of
+  `csp-booking-api`: every caller breaks if it still speaks plain HTTP. No key, certificate or CA is kept in the repository; the tests generate a
+  throwaway certificate with `keytool`.
 - `deploy/compose.yml` passes the variables the service reads, so the platform can run it: `MONGODB_URI` built from `CATALOG_APP_PASSWORD`
   (required), `MONGO_HOST` and `CATALOG_DB_NAME`, `JWT_PUBLIC_KEY` or `JWT_PUBLIC_KEY_FILE`, and `SERVICE_SUBJECTS` from
   `CATALOG_SERVICE_SUBJECTS` (default `booking-service`; the platform env files already use `SERVICE_SUBJECTS` for `csp-worker`).
