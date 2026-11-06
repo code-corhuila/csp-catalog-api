@@ -17,15 +17,23 @@ services:
       # The service refuses to start without one of the two.
       JWT_PUBLIC_KEY: ${JWT_PUBLIC_KEY:-}
       JWT_PUBLIC_KEY_FILE: ${JWT_PUBLIC_KEY_FILE:-}
-      # Certificate chain and private key the service serves HTTPS with (ADR-067), PEM files the platform mounts, issued by the
-      # internal CA of the environment for catalog-api and localhost. Compose refuses to start without them, and so does the service.
-      CATALOG_TLS_CERTIFICATE_FILE: ${CATALOG_TLS_CERTIFICATE_FILE:?set CATALOG_TLS_CERTIFICATE_FILE to the certificate the platform mounts}
-      CATALOG_TLS_PRIVATE_KEY_FILE: ${CATALOG_TLS_PRIVATE_KEY_FILE:?set CATALOG_TLS_PRIVATE_KEY_FILE to the key the platform mounts}
+      # Certificate chain and private key the service serves HTTPS with (ADR-067), PEM files issued by the internal CA of the
+      # environment for catalog-api and localhost. Inside the container they are always these paths; the files of the host are
+      # mounted there by `volumes` below. The service does not start without them.
+      CATALOG_TLS_CERTIFICATE_FILE: /run/tls/catalog.crt
+      CATALOG_TLS_PRIVATE_KEY_FILE: /run/tls/catalog.key
       # The CA that signed that certificate (public). Only the healthcheck below reads it: it verifies the certificate like any caller.
-      CATALOG_TLS_CA_FILE: ${CATALOG_TLS_CA_FILE:?set CATALOG_TLS_CA_FILE to the CA certificate the platform mounts}
+      CATALOG_TLS_CA_FILE: /run/tls/ca.crt
       # Subjects of the service tokens allowed to read the availability of a showtime (ADR-042), comma separated. The
       # platform env files already use SERVICE_SUBJECTS for csp-worker, so the value of this service comes from its own name.
       SERVICE_SUBJECTS: ${CATALOG_SERVICE_SUBJECTS:-booking-service}
+    # The three files of the host, read-only, in the order csp-infra-postgres documents (`./scripts/internal-ca.sh` writes them and
+    # names their paths in env/<environment>.env). Compose refuses to render without any of them, naming the variable. Only the
+    # certificate and the key of Catalog are mounted here; ca.key never leaves the folder of the CA.
+    volumes:
+      - ${CATALOG_TLS_CERTIFICATE_HOST_FILE:?set CATALOG_TLS_CERTIFICATE_HOST_FILE to the certificate chain of catalog-api}:/run/tls/catalog.crt:ro
+      - ${CATALOG_TLS_PRIVATE_KEY_HOST_FILE:?set CATALOG_TLS_PRIVATE_KEY_HOST_FILE to the private key of catalog-api}:/run/tls/catalog.key:ro
+      - ${CATALOG_TLS_CA_HOST_FILE:?set CATALOG_TLS_CA_HOST_FILE to the CA certificate (public)}:/run/tls/ca.crt:ro
     # Healthy only while MongoDB answers the ping of GET /health/ready (DEC-012); compose reports it and does not restart
     # the container for it. The timeout leaves room for the 503 that readiness answers after waiting up to 5 s for
     # MongoDB (server selection, Norma 5.3.10). The path includes the context-path of application.yml. The JRE image ships curl.
