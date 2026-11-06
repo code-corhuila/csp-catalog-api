@@ -31,6 +31,11 @@ introduces it.
   Until now both answered `404`.
 
 ### Fixed
+- `deploy/compose.yml` mounts the TLS files of ADR-067: `CATALOG_TLS_CERTIFICATE_HOST_FILE` at `/run/tls/catalog.crt`, `CATALOG_TLS_PRIVATE_KEY_HOST_FILE` at
+  `/run/tls/catalog.key` and `CATALOG_TLS_CA_HOST_FILE` at `/run/tls/ca.crt`, read-only, and the three `CATALOG_TLS_*_FILE` variables point there. Until now the
+  compose file passed the variables but declared no volume, so the container did not start (`'/run/tls/catalog.key' is neither a file nor a directory`). The
+  three host variables are required: compose refuses to render without any of them. `deploy/check-tls-mounts.sh` checks the mounts and the refusals without
+  starting anything and prints its totals. Found by running the platform from `qa` (code-corhuila/csp-catalog-api#107, code-corhuila/csp-docs#289).
 - The token validation tolerates 30 seconds of clock skew on `exp` (Norma 5.3.7): a token that expired up to 30 s ago is accepted on every route,
   the availability of a showtime included, and one that expired earlier is still a 401. Four tests of `JwtAuthenticationFilterTest` cover the
   edges (code-corhuila/csp-catalog-api#91, part of the consumer guide code-corhuila/csp-docs#266).
