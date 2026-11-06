@@ -49,6 +49,8 @@ The variables are listed in `.env.example`; copy it to `.env` for local values a
 | `PORT` | Port of the service, `8082` by default |
 | `MONGODB_URI` | The replica set of `csp-infra-mongo` and the login user of the catalog (Annex J.5) |
 | `JWT_PUBLIC_KEY` or `JWT_PUBLIC_KEY_FILE` | Public key of the identity service that validates every token: the PEM itself or the path of the file that holds it; set one of the two |
+| `CATALOG_TLS_CERTIFICATE_FILE` and `CATALOG_TLS_PRIVATE_KEY_FILE` | The certificate chain and the private key the service serves HTTPS with (PEM files the platform mounts, issued by the internal CA of the environment for `catalog-api` and `localhost`). The service answers HTTPS only on its single port and does not start without both files; a renewed certificate is read without a restart (ADR-067) |
+| `CATALOG_TLS_CA_FILE` | The public certificate of that CA. The service itself does not read it: the callers and the healthcheck use it to verify the certificate |
 | `SERVICE_SUBJECTS` | `sub` values of the service tokens allowed to read the availability, comma separated; absent: `booking-service`; present but empty: nobody |
 
 The pool and the timeouts of the MongoDB client are declared in `catalog-app/src/main/resources/application.yml`
@@ -57,9 +59,11 @@ The pool and the timeouts of the MongoDB client are declared in `catalog-app/src
 In the platform, `deploy/compose.yml` builds the values of the service from the variables of the platform env files: `MONGODB_URI` from
 `CATALOG_APP_PASSWORD` (required: compose refuses to start without it; it travels inside the URI, so use characters that need
 no escaping), `MONGO_HOST` and `CATALOG_DB_NAME`; `JWT_PUBLIC_KEY` or `JWT_PUBLIC_KEY_FILE`; and `SERVICE_SUBJECTS` from
-`CATALOG_SERVICE_SUBJECTS` (default `booking-service`), because the platform already uses `SERVICE_SUBJECTS` for `csp-worker`.
-The container has a healthcheck that calls `GET /health/ready`: it is healthy only while MongoDB answers the ping, unhealthy
-when it does not and healthy again when it returns; compose reports it and does not restart the container for it (DEC-012).
+`CATALOG_SERVICE_SUBJECTS` (default `booking-service`), because the platform already uses `SERVICE_SUBJECTS` for `csp-worker`; and the three
+`CATALOG_TLS_*` variables, required (compose refuses to start without them).
+The container has a healthcheck that calls `GET /health/ready` over HTTPS with `curl --cacert` and the CA file: it is healthy only while MongoDB
+answers the ping, unhealthy when it does not and healthy again when it returns; compose reports it and does not restart the container for it
+(DEC-012, ADR-067).
 
 ## Stack
 
@@ -98,7 +102,7 @@ Requirements: Java 21 and Maven 3.9 (or Docker).
 mvn -B verify                              # compile and run every test
 mvn -B -pl catalog-core test               # only the domain tests (no Spring, no database)
 mvn -B -pl catalog-app -am package -DskipTests
-java -jar catalog-app/target/catalog-app-0.1.0.jar   # starts on PORT, 8082 by default
+java -jar catalog-app/target/catalog-app-0.1.0.jar   # starts on PORT, 8082 by default, HTTPS only: needs the CATALOG_TLS_* files
 ```
 
 The integration tests need a disposable MongoDB replica set that already has the structure of `csp-catalog-db`, and
@@ -114,7 +118,7 @@ With Docker, from the root of the repository:
 
 ```bash
 docker build -f deploy/Dockerfile -t csp-catalog-api .
-docker run --rm -e PORT=8082 -e MONGODB_URI=<uri> -e JWT_PUBLIC_KEY_FILE=<path> -p 8082:8082 csp-catalog-api
+docker run --rm -e PORT=8082 -e MONGODB_URI=<uri> -e JWT_PUBLIC_KEY_FILE=<path>   -e CATALOG_TLS_CERTIFICATE_FILE=<path> -e CATALOG_TLS_PRIVATE_KEY_FILE=<path> -v <directory with both files>:<same path>:ro   -p 8082:8082 csp-catalog-api
 ```
 
 The log ends with `Started CatalogApplication` when the service is up. In the platform, `csp-infra-mongo` includes
