@@ -5,16 +5,23 @@ import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
+import ch.qos.logback.classic.Level;
+import ch.qos.logback.classic.Logger;
+import ch.qos.logback.classic.spi.ILoggingEvent;
+import ch.qos.logback.core.read.ListAppender;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.nimbusds.jwt.JWTClaimsSet;
 import java.util.Date;
 import java.util.List;
 import java.util.Set;
+import java.util.function.UnaryOperator;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.ValueSource;
+import org.slf4j.LoggerFactory;
 import org.slf4j.MDC;
 import org.springframework.mock.web.MockFilterChain;
 import org.springframework.mock.web.MockHttpServletRequest;
@@ -52,6 +59,20 @@ class JwtAuthenticationFilterTest {
     @AfterEach
     void clearTheLog() {
         MDC.clear();
+    }
+
+    private ListAppender<ILoggingEvent> auditEntries;
+
+    @BeforeEach
+    void captureTheAuditLog() {
+        auditEntries = new ListAppender<>();
+        auditEntries.start();
+        ((Logger) LoggerFactory.getLogger(JwtAuthenticationFilter.AUDIT_LOGGER)).addAppender(auditEntries);
+    }
+
+    @AfterEach
+    void releaseTheAuditLog() {
+        ((Logger) LoggerFactory.getLogger(JwtAuthenticationFilter.AUDIT_LOGGER)).detachAppender(auditEntries);
     }
 
     private record Outcome(MockHttpServletRequest request, MockHttpServletResponse response, boolean chained) {
@@ -149,9 +170,10 @@ class JwtAuthenticationFilterTest {
     void theAvailabilityOfAShowtimeIsNotServedHereSoTheShowtimePermissionDoesNotOpenIt() throws Exception {
         String path = "/showtimes/33333333-3333-4333-8333-333333333333/availability";
 
-        assertRejected(call("GET", path, "Bearer " + TestTokens.valid(SHOWTIME_WRITER)), 403, "FORBIDDEN");
-        assertRejected(call("GET", path, "Bearer " + TestTokens.valid(List.of("showtime:write", "catalog:write"))),
+        assertRejected(call("GET", path, "Bearer " + tokenOf(TestTokens.SUBJECT, SHOWTIME_WRITER)), 403, "FORBIDDEN");
+        assertRejected(call("GET", path, "Bearer " + tokenOf(TestTokens.SUBJECT, List.of("showtime:write", "catalog:write"))),
                 403, "FORBIDDEN");
+        assertRejected(call("GET", path, "Bearer " + TestTokens.valid(SHOWTIME_WRITER)), 401, "INVALID_TOKEN");
     }
 
     @Test
@@ -339,9 +361,9 @@ class JwtAuthenticationFilterTest {
     @Test
     void theSkewAlsoAppliesToTheTokenOfAServiceOnTheAvailabilityRoute() throws Exception {
         Outcome within = call("GET", AVAILABILITY, "Bearer " + TestTokens.rs256(
-                TestTokens.claims(SERVICE, List.of(), secondsAgo(10)).build()));
+                TestTokens.serviceClaims(SERVICE, List.of(), secondsAgo(10)).build()));
         Outcome beyond = call("GET", AVAILABILITY, "Bearer " + TestTokens.rs256(
-                TestTokens.claims(SERVICE, List.of(), secondsAgo(40)).build()));
+                TestTokens.serviceClaims(SERVICE, List.of(), secondsAgo(40)).build()));
 
         assertTrue(within.chained());
         assertRejected(beyond, 401, "INVALID_TOKEN");
@@ -373,7 +395,7 @@ class JwtAuthenticationFilterTest {
     }
 
     private static String tokenOf(String subject, List<String> permissions) {
-        return TestTokens.rs256(TestTokens.claims(subject, permissions, TestTokens.inOneHour()).build());
+        return TestTokens.rs256(TestTokens.serviceClaims(subject, permissions, TestTokens.inOneHour()).build());
     }
 
     private Outcome availability(String token) throws Exception {
@@ -411,29 +433,94 @@ class JwtAuthenticationFilterTest {
     }
 
     private static String tokenExpiring(String subject, Date expiresAt) {
-        return TestTokens.rs256(TestTokens.claims(subject, List.of(), expiresAt).build());
+        return TestTokens.rs256(TestTokens.serviceClaims(subject, List.of(), expiresAt).build());
     }
 
     @Test
     void aTokenOfAServiceSubjectSignedWithAnotherKeyIsInvalid() throws Exception {
-        String forged = TestTokens.signedByAnotherKey(TestTokens.claims(SERVICE, List.of(), TestTokens.inOneHour()).build());
+        String forged = TestTokens.signedByAnotherKey(TestTokens.serviceClaims(SERVICE, List.of(), TestTokens.inOneHour()).build());
 
         assertRejected(availability(forged), 401, "INVALID_TOKEN");
     }
 
     @Test
-    void aValidTokenWhoseSubjectIsNotAServiceSubjectIsForbiddenWhateverItsPermissions() throws Exception {
-        assertRejected(availability(TestTokens.valid(List.of())), 403, "FORBIDDEN");
-        assertRejected(availability(TestTokens.valid(SHOWTIME_WRITER)), 403, "FORBIDDEN");
-        assertRejected(availability(TestTokens.valid(ADMINISTRATOR)), 403, "FORBIDDEN");
+    void aServiceCredentialWhoseSubjectIsNotAServiceSubjectIsForbiddenWhateverItsPermissions() throws Exception {
+        assertRejected(availability(tokenOf(TestTokens.SUBJECT, List.of())), 403, "FORBIDDEN");
+        assertRejected(availability(tokenOf(TestTokens.SUBJECT, ADMINISTRATOR)), 403, "FORBIDDEN");
         assertRejected(availability(tokenOf("payment-service", ADMINISTRATOR)), 403, "FORBIDDEN");
         assertRejected(availability(tokenOf("Booking-Service", List.of())), 403, "FORBIDDEN");
         assertRejected(availability(tokenOf("booking-service ", List.of())), 403, "FORBIDDEN");
     }
 
+    private static String credential(UnaryOperator<JWTClaimsSet.Builder> change) {
+        return TestTokens.rs256(change.apply(TestTokens.serviceClaims(SERVICE, List.of(), TestTokens.inOneHour())).build());
+    }
+
+    @Test
+    void aTokenOfAServiceSubjectWithoutTheIssuerIsInvalid() throws Exception {
+        assertRejected(availability(credential(claims -> claims.claim("iss", null))), 401, "INVALID_TOKEN");
+    }
+
+    @Test
+    void aTokenOfAServiceSubjectWithAnotherIssuerIsInvalid() throws Exception {
+        assertRejected(availability(credential(claims -> claims.issuer("another-issuer"))), 401, "INVALID_TOKEN");
+        assertRejected(availability(credential(claims -> claims.issuer("CSP-AUTH"))), 401, "INVALID_TOKEN");
+        assertRejected(availability(credential(claims -> claims.issuer(""))), 401, "INVALID_TOKEN");
+    }
+
+    @Test
+    void aTokenOfAServiceSubjectWithoutTheAudienceIsInvalid() throws Exception {
+        assertRejected(availability(credential(claims -> claims.claim("aud", null))), 401, "INVALID_TOKEN");
+    }
+
+    @Test
+    void aTokenOfAServiceSubjectWithAnotherAudienceIsInvalid() throws Exception {
+        assertRejected(availability(credential(claims -> claims.audience(List.of("another-service")))), 401, "INVALID_TOKEN");
+        assertRejected(availability(credential(claims -> claims.audience(List.of("CSP-INTERNAL")))), 401, "INVALID_TOKEN");
+        assertRejected(availability(credential(claims -> claims.audience(List.of()))), 401, "INVALID_TOKEN");
+    }
+
+    @Test
+    void aUsersAccessTokenIsNotAServiceCredentialEvenWithAServiceSubject() throws Exception {
+        assertRejected(availability(credential(claims -> claims.audience(List.of(TestTokens.USER_AUDIENCE)))), 401, "INVALID_TOKEN");
+    }
+
+    @Test
+    void aUsersAccessTokenIsInvalidOnTheAvailabilityWhateverItsPermissions() throws Exception {
+        for (List<String> permissions : List.of(List.<String>of(), SHOWTIME_WRITER, ADMINISTRATOR)) {
+            String userToken = TestTokens.rs256(TestTokens.claims(TestTokens.SUBJECT, permissions, TestTokens.inOneHour())
+                    .issuer(TestTokens.ISSUER).audience(List.of(TestTokens.USER_AUDIENCE)).build());
+
+            assertRejected(availability(userToken), 401, "INVALID_TOKEN");
+            assertRejected(availability(TestTokens.valid(permissions)), 401, "INVALID_TOKEN");
+        }
+    }
+
+    @Test
+    void theAudienceMayBeAStringOrAListThatContainsTheInternalOne() throws Exception {
+        assertTrue(availability(credential(claims -> claims.audience(TestTokens.SERVICE_AUDIENCE))).chained());
+        assertTrue(availability(credential(claims -> claims.audience(List.of(TestTokens.SERVICE_AUDIENCE)))).chained());
+        assertTrue(availability(credential(claims -> claims.audience(List.of(TestTokens.USER_AUDIENCE, TestTokens.SERVICE_AUDIENCE)))).chained());
+    }
+
+    @Test
+    void aTokenWithoutTheServiceClaimsIsInvalidAndLeavesOneAuditEntryWithoutSubject() throws Exception {
+        availability(credential(claims -> claims.claim("iss", null).claim("aud", null)));
+
+        assertEquals(entryOf("-", "GET", 401, "INVALID_TOKEN"), theOnlyAuditEntry().getFormattedMessage());
+    }
+
+    @Test
+    void theClaimsOfAServiceCredentialAreOnlyCheckedWhereItIsAccepted() throws Exception {
+        String withoutClaims = TestTokens.rs256(TestTokens.claims(SERVICE, List.of(), TestTokens.inOneHour()).build());
+
+        assertRejected(call("GET", "/movies", "Bearer " + withoutClaims), 403, "FORBIDDEN");
+        assertTrue(post("/movies", TestTokens.valid(CATALOG_WRITER)).chained());
+    }
+
     @Test
     void theForbiddenAnswerHasTheEnvelopeAndNeverEchoesTheToken() throws Exception {
-        String token = TestTokens.valid(ADMINISTRATOR);
+        String token = tokenOf("payment-service", ADMINISTRATOR);
 
         Outcome outcome = availability(token);
 
@@ -458,7 +545,7 @@ class JwtAuthenticationFilterTest {
         JwtAuthenticationFilter nobody = filterFor();
 
         assertRejected(call(nobody, "GET", AVAILABILITY, "Bearer " + tokenOf(SERVICE, List.of())), 403, "FORBIDDEN");
-        assertRejected(call(nobody, "GET", AVAILABILITY, "Bearer " + TestTokens.valid(ADMINISTRATOR)), 403, "FORBIDDEN");
+        assertRejected(call(nobody, "GET", AVAILABILITY, "Bearer " + tokenOf("csp-worker", ADMINISTRATOR)), 403, "FORBIDDEN");
         assertRejected(call(nobody, "GET", AVAILABILITY, null), 401, "UNAUTHORIZED");
     }
 
@@ -482,6 +569,78 @@ class JwtAuthenticationFilterTest {
         assertRejected(call("GET", AVAILABILITY + "x", service), 403, "FORBIDDEN");
         assertRejected(call("GET", AVAILABILITY + "/extra", service), 403, "FORBIDDEN");
         assertRejected(call("GET", "/showtimes/availability", service), 403, "FORBIDDEN");
+    }
+
+    private ILoggingEvent theOnlyAuditEntry() {
+        assertEquals(1, auditEntries.list.size(), "one rejected call leaves exactly one audit entry");
+        ILoggingEvent entry = auditEntries.list.get(0);
+        assertTrue(entry.getLevel().isGreaterOrEqual(Level.INFO));
+        assertTrue(Math.abs(System.currentTimeMillis() - entry.getTimeStamp()) < 60_000, "the entry is stamped when it is written");
+        return entry;
+    }
+
+    private static String entryOf(String subject, String method, int status, String error) {
+        return "availability call rejected: sub=" + subject + " source=127.0.0.1 method=" + method + " route=" + AVAILABILITY
+                + " result=" + status + " " + error;
+    }
+
+    @Test
+    void aCallWithoutTokenToTheAvailabilityLeavesOneAuditEntryWithoutSubject() throws Exception {
+        call("GET", AVAILABILITY, null);
+
+        assertEquals(entryOf("-", "GET", 401, "UNAUTHORIZED"), theOnlyAuditEntry().getFormattedMessage());
+    }
+
+    @Test
+    void anInvalidTokenOnTheAvailabilityLeavesOneAuditEntryWithoutSubjectAndWithoutTheToken() throws Exception {
+        String token = TestTokens.hs256(List.of());
+
+        availability(token);
+
+        ILoggingEvent entry = theOnlyAuditEntry();
+        assertEquals(entryOf("-", "GET", 401, "INVALID_TOKEN"), entry.getFormattedMessage());
+        assertFalse(entry.getFormattedMessage().contains(token));
+    }
+
+    @Test
+    void aSubjectThatIsNotAServiceOnTheAvailabilityLeavesOneAuditEntryWithItsSubjectAndWithoutTheToken() throws Exception {
+        String token = tokenOf("payment-service", ADMINISTRATOR);
+
+        availability(token);
+
+        ILoggingEvent entry = theOnlyAuditEntry();
+        assertEquals(entryOf("payment-service", "GET", 403, "FORBIDDEN"), entry.getFormattedMessage());
+        assertFalse(entry.getFormattedMessage().contains(token));
+    }
+
+    @Test
+    void aServiceTokenWithAnotherMethodOnTheAvailabilityLeavesOneAuditEntryWithTheServiceSubject() throws Exception {
+        call("POST", AVAILABILITY, "Bearer " + tokenOf(SERVICE, List.of()));
+
+        assertEquals(entryOf(SERVICE, "POST", 403, "FORBIDDEN"), theOnlyAuditEntry().getFormattedMessage());
+    }
+
+    @Test
+    void theAuditEntryCarriesTheCorrelationIdOfTheRequest() throws Exception {
+        call("GET", AVAILABILITY, null);
+
+        assertEquals(TRACE, theOnlyAuditEntry().getMDCPropertyMap().get(CorrelationIdFilter.TRACE_ID_MDC_KEY));
+    }
+
+    @Test
+    void anAcceptedCallToTheAvailabilityLeavesNoAuditEntry() throws Exception {
+        assertTrue(availability(tokenOf(SERVICE, List.of())).chained());
+
+        assertTrue(auditEntries.list.isEmpty());
+    }
+
+    @Test
+    void theRejectionsOfTheOtherRoutesLeaveNoAuditEntry() throws Exception {
+        call("GET", "/movies", null);
+        post("/movies", TestTokens.valid(READER));
+        call("GET", "/showtimes", "Bearer not-a-jwt");
+
+        assertTrue(auditEntries.list.isEmpty());
     }
 
     @Test
