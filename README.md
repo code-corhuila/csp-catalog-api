@@ -60,7 +60,10 @@ In the platform, `deploy/compose.yml` builds the values of the service from the 
 `CATALOG_APP_PASSWORD` (required: compose refuses to start without it; it travels inside the URI, so use characters that need
 no escaping), `MONGO_HOST` and `CATALOG_DB_NAME`; `JWT_PUBLIC_KEY` or `JWT_PUBLIC_KEY_FILE`; and `SERVICE_SUBJECTS` from
 `CATALOG_SERVICE_SUBJECTS` (default `booking-service`), because the platform already uses `SERVICE_SUBJECTS` for `csp-worker`; and the three
-`CATALOG_TLS_*` variables, required (compose refuses to start without them).
+`CATALOG_TLS_*` files: it mounts, read-only, `CATALOG_TLS_CERTIFICATE_HOST_FILE` at `/run/tls/catalog.crt`, `CATALOG_TLS_PRIVATE_KEY_HOST_FILE` at
+`/run/tls/catalog.key` and `CATALOG_TLS_CA_HOST_FILE` at `/run/tls/ca.crt`, and the three `CATALOG_TLS_*_FILE` variables point there inside the container. The
+three host variables are required (compose refuses to render without any of them, naming it); `csp-infra-postgres` writes the files with
+`./scripts/internal-ca.sh` (ADR-067). `bash deploy/check-tls-mounts.sh` checks the mounts without starting anything and prints its totals.
 The container has a healthcheck that calls `GET /health/ready` over HTTPS with `curl --cacert` and the CA file: it is healthy only while MongoDB
 answers the ping, unhealthy when it does not and healthy again when it returns; compose reports it and does not restart the container for it
 (DEC-012, ADR-067).
