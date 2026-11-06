@@ -6,10 +6,15 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import java.util.List;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.boot.ssl.SslBundle;
+import org.springframework.boot.ssl.SslStoreBundle;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.boot.test.web.client.TestRestTemplate;
+import org.springframework.boot.test.web.server.LocalServerPort;
+import org.springframework.boot.web.client.RestTemplateBuilder;
 import org.springframework.http.HttpEntity;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpMethod;
@@ -19,7 +24,8 @@ import org.springframework.http.ResponseEntity;
 /**
  * The composition root really wires the HTTP adapter: the service answers under the base path of the
  * contract, the token is checked before any route, and every rejection is the error envelope that carries
- * the correlation id of the request.
+ * the correlation id of the request. The service speaks HTTPS only (ADR-067), so the client trusts the throwaway
+ * certificate of the run and nothing else.
  */
 @SpringBootTest(webEnvironment = SpringBootTest.WebEnvironment.RANDOM_PORT)
 class HttpEnvelopeWiringTest extends ApplicationContextTest {
@@ -27,11 +33,20 @@ class HttpEnvelopeWiringTest extends ApplicationContextTest {
     private static final String CORRELATION = "550e8400-e29b-41d4-a716-446655440000";
     private static final String MOVIE = "/movies/11111111-1111-4111-8111-111111111111";
 
-    @Autowired
+    @LocalServerPort
+    private int port;
+
     private TestRestTemplate http;
 
     @Autowired
     private ObjectMapper json;
+
+    @BeforeEach
+    void callOverHttpsTrustingTheCertificateOfTheRun() throws Exception {
+        SslBundle trusting = SslBundle.of(SslStoreBundle.of(null, null, TlsTestFiles.shared().trustStore()));
+        http = new TestRestTemplate(new RestTemplateBuilder().sslBundle(trusting)
+                .rootUri("https://localhost:" + port + "/api/v1/catalog"));
+    }
 
     private ResponseEntity<String> get(String path, String token) {
         HttpHeaders headers = new HttpHeaders();

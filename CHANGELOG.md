@@ -6,6 +6,13 @@ introduces it.
 ## [Unreleased]
 
 ### Changed
+- The service answers HTTPS only on its single port and no longer has a plain HTTP listener (ADR-067, code-corhuila/csp-docs#289). It serves the
+  certificate chain and the private key of `CATALOG_TLS_CERTIFICATE_FILE` and `CATALOG_TLS_PRIVATE_KEY_FILE` through a Spring Boot SSL bundle with
+  reload on update, and it does not start without both files (fail closed). The healthcheck of `deploy/compose.yml` is now `curl --cacert` on
+  `https://localhost:8082/api/v1/catalog/health/ready`, with `CATALOG_TLS_CA_FILE`; compose refuses to start without the three variables.
+  Deploy together with the CA and the certificate of `csp-infra-postgres`, the HTTPS upstream of `csp-api-gateway` and the truststore of
+  `csp-booking-api`: every caller breaks if it still speaks plain HTTP. No key, certificate or CA is kept in the repository; the tests generate a
+  throwaway certificate with `keytool`.
 - The availability of a showtime (`GET /showtimes/{showtimeId}/availability`) now requires a service credential: `iss` `csp-auth` and an `aud` that
   contains `csp-internal` (string or list), besides RS256, `exp`, `sub` and a `sub` in `SERVICE_SUBJECTS`. A token without them, a user's access token
   (`aud` `csp-api`) included, is a `401` `INVALID_TOKEN` instead of the former `403`; a service credential of another `sub` stays a `403`. The claims are
