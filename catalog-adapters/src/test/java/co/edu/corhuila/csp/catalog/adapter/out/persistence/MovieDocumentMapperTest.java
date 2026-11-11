@@ -27,11 +27,12 @@ class MovieDocumentMapperTest {
     private static Movie full() {
         return Movie.create(ID, new MovieDetails("Synthetic Movie", "A synopsis", 120, "PG-13",
                 LocalDate.of(2026, 12, 1), List.of("Drama", "Comedy"), List.of("Synthetic Actor"),
-                URI.create("https://example.com/poster.png")), PublicationStatus.PUBLISHED, NOW);
+                URI.create("https://example.com/poster.png"),
+                URI.create("https://example.com/trailer")), PublicationStatus.PUBLISHED, NOW);
     }
 
     private static Movie minimal() {
-        return Movie.create(ID, new MovieDetails("Synthetic Movie", null, 90, "G", null, null, null, null),
+        return Movie.create(ID, new MovieDetails("Synthetic Movie", null, 90, "G", null, null, null, null, null),
                 PublicationStatus.DRAFT, NOW);
     }
 
@@ -40,12 +41,13 @@ class MovieDocumentMapperTest {
         Document document = MovieDocumentMapper.toDocument(full());
 
         assertEquals(Set.of("_id", "title", "synopsis", "duration_minutes", "classification", "release_date",
-                "genres", "cast", "poster_url", "publication_status", "created_at", "updated_at", "deleted_at"),
+                "genres", "cast", "poster_url", "trailer_url", "publication_status", "created_at", "updated_at", "deleted_at"),
                 document.keySet());
         assertEquals(ID.toString(), document.get("_id"));
         assertInstanceOf(Integer.class, document.get("duration_minutes"));
         assertEquals("PUBLISHED", document.get("publication_status"));
         assertEquals("https://example.com/poster.png", document.get("poster_url"));
+        assertEquals("https://example.com/trailer", document.get("trailer_url"));
         assertEquals(Date.from(NOW), document.get("created_at"));
         assertEquals(Date.from(NOW), document.get("updated_at"));
         assertNull(document.get("deleted_at"));
@@ -72,6 +74,7 @@ class MovieDocumentMapperTest {
         assertTrue(document.containsKey("synopsis") && document.get("synopsis") == null);
         assertNull(document.get("release_date"));
         assertNull(document.get("poster_url"));
+        assertTrue(document.containsKey("trailer_url") && document.get("trailer_url") == null);
         assertEquals(minimal(), MovieDocumentMapper.toMovie(document));
     }
 

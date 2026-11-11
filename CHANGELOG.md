@@ -20,6 +20,11 @@ introduces it.
   code-corhuila/csp-catalog-api#102).
 
 ### Added
+- A movie carries an optional `trailerUrl`: an absolute `http` or `https` link of at most 2048 characters that the administrator sets with
+  `POST /movies` and `PATCH /movies/{movieId}` (a field that is not sent keeps its value, like `posterUrl`). It is stored as `trailer_url` and returned by
+  `GET /movies`, `GET /movies/{movieId}`, `GET /billboard` and `GET /movies/search` when it is set, validated against `catalog-service.yaml` 1.11.0
+  (HU-CATALOG-001, DEC-015). It is part of the idempotency hash, so two requests that differ only in the trailer are not a replay.
+  Deploy after the validator of `csp-catalog-db` (changeset `movies-006`) is applied.
 - Every call rejected on `GET /showtimes/{showtimeId}/availability` (no token, invalid token, or a valid token whose `sub` is not in
   `SERVICE_SUBJECTS`) writes one INFO audit entry in the logger `co.edu.corhuila.csp.catalog.security.audit` with the `sub` (only of a valid token),
   the source, the method, the route and the result, never the token; the correlation id comes from the MDC and the time from the log record

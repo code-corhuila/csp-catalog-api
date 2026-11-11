@@ -41,7 +41,7 @@ public class MovieService implements MovieUseCases {
         MovieDetails d = input.details();
         String hash = IdempotentWrites.requestHash(WriteOperation.CREATE_MOVIE, null, d.title(), d.synopsis(),
                 d.durationMinutes(), d.classification(), d.releaseDate(), d.genres(), d.cast(), d.posterUrl(),
-                input.status());
+                d.trailerUrl(), input.status());
         return replayOr(input.idempotencyKey(), hash, () -> movies.save(new MovieWrite(
                 Movie.create(ids.next(), d, input.status(), now()), WriteOperation.CREATE_MOVIE,
                 input.idempotencyKey(), hash)));
@@ -62,7 +62,7 @@ public class MovieService implements MovieUseCases {
         MovieChanges c = input.changes();
         String hash = IdempotentWrites.requestHash(WriteOperation.UPDATE_MOVIE, input.movieId(), c.title(),
                 c.synopsis(), c.durationMinutes(), c.classification(), c.releaseDate(), c.genres(), c.cast(),
-                c.posterUrl(), c.status());
+                c.posterUrl(), c.trailerUrl(), c.status());
         return replayOr(input.idempotencyKey(), hash, () -> movies.save(new MovieWrite(
                 getMovie(input.movieId()).change(c, now()), WriteOperation.UPDATE_MOVIE,
                 input.idempotencyKey(), hash)));

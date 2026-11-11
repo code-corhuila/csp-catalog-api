@@ -28,7 +28,7 @@ class ShowtimeTest {
     private static final TimeInterval INTERVAL = new TimeInterval(START, END);
 
     private static Movie movieIn(PublicationStatus status) {
-        MovieDetails details = new MovieDetails("Synthetic Movie", null, 120, "PG-13", null, null, null, null);
+        MovieDetails details = new MovieDetails("Synthetic Movie", null, 120, "PG-13", null, null, null, null, null);
         return Movie.create(MOVIE_ID, details,
                 status == PublicationStatus.ARCHIVED ? PublicationStatus.DRAFT : status, NOW).withStatus(status, NOW);
     }

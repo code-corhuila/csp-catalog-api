@@ -62,7 +62,8 @@ class MongoMovieSearchReaderTest {
             PublicationStatus status) {
         Movie created = Movie.create(id, new MovieDetails(title, synopsis, minutes, "PG-13",
                 LocalDate.parse("2026-09-01"), genres, List.of("Synthetic Actor"),
-                URI.create("https://example.com/poster.png")), PublicationStatus.DRAFT, NOW);
+                URI.create("https://example.com/poster.png"),
+                URI.create("https://example.com/trailer")), PublicationStatus.DRAFT, NOW);
         Movie stored = status == PublicationStatus.DRAFT ? created : created.withStatus(status, NOW);
         template.insert(MovieDocumentMapper.toDocument(stored), "movies");
         return stored;
@@ -100,7 +101,7 @@ class MongoMovieSearchReaderTest {
         assertEquals(1, page.page());
         assertEquals(100, page.limit());
         assertEquals(new BillboardMovie(movie.id(), "Synthetic Movie", "A synthetic synopsis.", 120,
-                List.of("Drama", "Comedy"), "PG-13", URI.create("https://example.com/poster.png"),
+                List.of("Drama", "Comedy"), "PG-13", URI.create("https://example.com/poster.png"), URI.create("https://example.com/trailer"),
                 LocalDate.parse("2026-09-01")), page.items().get(0));
     }
 
