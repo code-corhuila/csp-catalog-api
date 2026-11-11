@@ -17,11 +17,13 @@ public record MovieDetails(
         LocalDate releaseDate,
         List<String> genres,
         List<String> cast,
-        URI posterUrl) {
+        URI posterUrl,
+        URI trailerUrl) {
 
     public static final int MAX_TITLE_LENGTH = 255;
     public static final int MAX_GENRES = 20;
     public static final int MAX_CAST = 50;
+    public static final int MAX_TRAILER_LENGTH = 2048;
 
     public MovieDetails {
         if (title == null || title.isBlank() || title.length() > MAX_TITLE_LENGTH) {
@@ -38,6 +40,10 @@ public record MovieDetails(
         if (posterUrl != null && !isHttpAddress(posterUrl)) {
             throw new InvalidMovieException("the poster must be an absolute http or https address");
         }
+        if (trailerUrl != null && (!isHttpAddress(trailerUrl) || trailerUrl.toString().length() > MAX_TRAILER_LENGTH)) {
+            throw new InvalidMovieException(
+                    "the trailer must be an absolute http or https address of at most 2048 characters");
+        }
     }
 
     /** Applies the fields that were sent; the result is validated like any other movie. */
@@ -50,7 +56,8 @@ public record MovieDetails(
                 changes.releaseDate() != null ? changes.releaseDate() : releaseDate,
                 changes.genres() != null ? changes.genres() : genres,
                 changes.cast() != null ? changes.cast() : cast,
-                changes.posterUrl() != null ? changes.posterUrl() : posterUrl);
+                changes.posterUrl() != null ? changes.posterUrl() : posterUrl,
+                changes.trailerUrl() != null ? changes.trailerUrl() : trailerUrl);
     }
 
     private static List<String> names(List<String> values, int max, String what) {

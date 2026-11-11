@@ -14,5 +14,6 @@ public record MovieChanges(
         List<String> genres,
         List<String> cast,
         URI posterUrl,
+        URI trailerUrl,
         PublicationStatus status) {
 }

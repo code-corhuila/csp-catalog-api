@@ -21,6 +21,7 @@ import co.edu.corhuila.csp.catalog.domain.model.MovieChanges;
 import co.edu.corhuila.csp.catalog.domain.model.MovieDetails;
 import co.edu.corhuila.csp.catalog.domain.model.MovieNotFoundException;
 import co.edu.corhuila.csp.catalog.domain.model.PublicationStatus;
+import java.net.URI;
 import java.time.Clock;
 import java.time.Instant;
 import java.time.ZoneOffset;
@@ -44,11 +45,11 @@ class MovieServiceTest {
     private final MovieService service = new MovieService(movies, () -> ID, Clock.fixed(NOW, ZoneOffset.UTC));
 
     private static MovieDetails details() {
-        return new MovieDetails("Synthetic Movie", null, 120, "PG-13", null, null, null, null);
+        return new MovieDetails("Synthetic Movie", null, 120, "PG-13", null, null, null, null, null);
     }
 
     private static MovieChanges titleChange(String title) {
-        return new MovieChanges(title, null, null, null, null, null, null, null, null);
+        return new MovieChanges(title, null, null, null, null, null, null, null, null, null);
     }
 
     @Test
@@ -78,10 +79,36 @@ class MovieServiceTest {
         service.createMovie(new CreateMovieInput("synthetic-key-0001", details(), PublicationStatus.DRAFT));
         service.createMovie(new CreateMovieInput("synthetic-key-0002", details(), PublicationStatus.DRAFT));
         service.createMovie(new CreateMovieInput("synthetic-key-0003",
-                new MovieDetails("Another Movie", null, 120, "PG-13", null, null, null, null), PublicationStatus.DRAFT));
+                new MovieDetails("Another Movie", null, 120, "PG-13", null, null, null, null, null), PublicationStatus.DRAFT));
 
         assertEquals(movies.writes.get(0).requestHash(), movies.writes.get(1).requestHash());
         assertNotEquals(movies.writes.get(0).requestHash(), movies.writes.get(2).requestHash());
+    }
+
+    @Test
+    void aCreationThatDiffersOnlyInTheTrailerHasAnotherHashAndTheSameKeyIsAConflict() {
+        MovieDetails withTrailer = new MovieDetails("Synthetic Movie", null, 120, "PG-13", null, null, null, null,
+                URI.create("https://example.com/trailer"));
+        service.createMovie(new CreateMovieInput("synthetic-key-0001", details(), PublicationStatus.DRAFT));
+        service.createMovie(new CreateMovieInput("synthetic-key-0002", withTrailer, PublicationStatus.DRAFT));
+
+        assertNotEquals(movies.writes.get(0).requestHash(), movies.writes.get(1).requestHash());
+        assertThrows(IdempotencyKeyConflictException.class,
+                () -> service.createMovie(new CreateMovieInput("synthetic-key-0001", withTrailer, PublicationStatus.DRAFT)));
+    }
+
+    @Test
+    void anUpdateThatDiffersOnlyInTheTrailerHasAnotherHashAndTheSameKeyIsAConflict() {
+        service.createMovie(new CreateMovieInput(KEY, details(), PublicationStatus.DRAFT));
+        MovieChanges first = new MovieChanges(null, null, null, null, null, null, null, null,
+                URI.create("https://example.com/trailer"), null);
+        MovieChanges second = new MovieChanges(null, null, null, null, null, null, null, null,
+                URI.create("https://example.com/another-trailer"), null);
+        service.updateMovie(new UpdateMovieInput("synthetic-key-0002", ID, first));
+
+        assertThrows(IdempotencyKeyConflictException.class,
+                () -> service.updateMovie(new UpdateMovieInput("synthetic-key-0002", ID, second)));
+        assertEquals(URI.create("https://example.com/trailer"), movies.stored.get(ID).details().trailerUrl());
     }
 
     @Test
@@ -99,13 +126,13 @@ class MovieServiceTest {
         service.createMovie(new CreateMovieInput(KEY, details(), PublicationStatus.DRAFT));
 
         assertThrows(IdempotencyKeyConflictException.class, () -> service.createMovie(new CreateMovieInput(KEY,
-                new MovieDetails("Another Movie", null, 120, "PG-13", null, null, null, null), PublicationStatus.DRAFT)));
+                new MovieDetails("Another Movie", null, 120, "PG-13", null, null, null, null, null), PublicationStatus.DRAFT)));
     }
 
     @Test
     void aBrokenInvariantStopsTheCreationBeforeAnythingIsWritten() {
         assertThrows(InvalidMovieException.class, () -> service.createMovie(new CreateMovieInput(KEY,
-                new MovieDetails("Synthetic Movie", null, 0, "PG-13", null, null, null, null), PublicationStatus.DRAFT)));
+                new MovieDetails("Synthetic Movie", null, 0, "PG-13", null, null, null, null, null), PublicationStatus.DRAFT)));
         assertTrue(movies.writes.isEmpty());
     }
 
@@ -170,7 +197,7 @@ class MovieServiceTest {
     void aReplayedUpdateAnswersBeforeTheRulesOfTheStateAreEvaluated() {
         service.createMovie(new CreateMovieInput(KEY, details(), PublicationStatus.DRAFT));
         UpdateMovieInput publish = new UpdateMovieInput("synthetic-key-0002", ID,
-                new MovieChanges(null, null, null, null, null, null, null, null, PublicationStatus.PUBLISHED));
+                new MovieChanges(null, null, null, null, null, null, null, null, null, PublicationStatus.PUBLISHED));
         service.updateMovie(publish);
         service.archiveMovie(new ArchiveMovieInput("synthetic-key-0003", ID));
 

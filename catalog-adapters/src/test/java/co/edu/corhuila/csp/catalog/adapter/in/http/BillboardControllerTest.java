@@ -52,14 +52,14 @@ class BillboardControllerTest {
     private static BillboardEntry entry() {
         return new BillboardEntry(
                 new BillboardMovie(MOVIE, "Synthetic Movie", "A synopsis", 120, List.of("Drama", "Comedy"), "PG-13",
-                        URI.create("https://example.com/poster.png"), LocalDate.parse("2026-12-01")),
+                        URI.create("https://example.com/poster.png"), URI.create("https://example.com/trailer"), LocalDate.parse("2026-12-01")),
                 new BillboardRoom(ROOM, "Synthetic Room", 80),
                 new BillboardShowtime(SHOWTIME, STARTS, ENDS, 1500, "es", "en"));
     }
 
     private static BillboardEntry bareEntry() {
         return new BillboardEntry(
-                new BillboardMovie(MOVIE, "Synthetic Movie", null, 120, null, "PG-13", null, null),
+                new BillboardMovie(MOVIE, "Synthetic Movie", null, 120, null, "PG-13", null, null, null),
                 new BillboardRoom(ROOM, "Synthetic Room", 80),
                 new BillboardShowtime(SHOWTIME, STARTS, ENDS, 0, null, null));
     }
@@ -90,6 +90,7 @@ class BillboardControllerTest {
                 .andExpect(jsonPath("$.data[0].movie.genres[1]").value("Comedy"))
                 .andExpect(jsonPath("$.data[0].movie.classification").value("PG-13"))
                 .andExpect(jsonPath("$.data[0].movie.posterUrl").value("https://example.com/poster.png"))
+                .andExpect(jsonPath("$.data[0].movie.trailerUrl").value("https://example.com/trailer"))
                 .andExpect(jsonPath("$.data[0].movie.releaseDate").value("2026-12-01"))
                 .andExpect(jsonPath("$.data[0].room.id").value(ROOM.toString()))
                 .andExpect(jsonPath("$.data[0].room.name").value("Synthetic Room"))
@@ -125,6 +126,7 @@ class BillboardControllerTest {
                 .andExpect(jsonPath("$.data[0].movie.synopsis").doesNotExist())
                 .andExpect(jsonPath("$.data[0].movie.genres").doesNotExist())
                 .andExpect(jsonPath("$.data[0].movie.posterUrl").doesNotExist())
+                .andExpect(jsonPath("$.data[0].movie.trailerUrl").doesNotExist())
                 .andExpect(jsonPath("$.data[0].movie.releaseDate").doesNotExist())
                 .andExpect(jsonPath("$.data[0].showtime.priceCents").value(0))
                 .andExpect(jsonPath("$.data[0].showtime.audioLanguage").doesNotExist())

@@ -32,7 +32,7 @@ class BillboardRoutesContractTest extends ContractTest {
     private static final String MOVIE = """
             {"title":"%s","synopsis":"A synopsis","durationMinutes":120,"classification":"PG-13",
              "releaseDate":"2026-12-01","genres":["Drama"],"cast":["Synthetic Actor"],
-             "posterUrl":"https://example.com/poster.png","status":"%s"}""";
+             "posterUrl":"https://example.com/poster.png","trailerUrl":"https://example.com/trailer","status":"%s"}""";
     private static final String ROOM = """
             {"name":"%s","seats":[{"label":"A1","row":"A","number":1,"type":"STANDARD"},{"label":"A2","type":"VIP"}]}""";
     private static final LocalDate TODAY = LocalDate.now(ZoneOffset.UTC);
@@ -98,6 +98,7 @@ class BillboardRoutesContractTest extends ContractTest {
         assertEquals(120, item.get("movie").get("durationMinutes").asInt());
         assertEquals("PG-13", item.get("movie").get("classification").asText());
         assertEquals("https://example.com/poster.png", item.get("movie").get("posterUrl").asText());
+        assertEquals("https://example.com/trailer", item.get("movie").get("trailerUrl").asText());
         assertFalse(item.get("movie").has("status"));
         assertFalse(item.get("movie").has("cast"));
         assertEquals(roomId, item.get("room").get("id").asText());

@@ -67,7 +67,7 @@ class BillboardServiceTest {
     private static BillboardEntry entry() {
         return new BillboardEntry(
                 new BillboardMovie(MOVIE_ID, "Synthetic Movie", null, 120, List.of(), "PG-13",
-                        URI.create("https://example.test/poster.png"), null),
+                        URI.create("https://example.test/poster.png"), null, null),
                 new BillboardRoom(ROOM_ID, "Room 1", 80),
                 new BillboardShowtime(SHOWTIME_ID, Instant.parse("2026-11-01T20:00:00Z"),
                         Instant.parse("2026-11-01T22:00:00Z"), 15000, null, null));

@@ -66,7 +66,8 @@ class MongoMovieRepositoryTest {
     private static Movie movie(String title, PublicationStatus status, Instant at) {
         return Movie.create(UUID.randomUUID(), new MovieDetails(title, "A synopsis", 120, "PG-13",
                 LocalDate.of(2026, 12, 1), List.of("Drama"), List.of("Synthetic Actor"),
-                URI.create("https://example.com/poster.png")), status, at);
+                URI.create("https://example.com/poster.png"),
+                URI.create("https://example.com/trailer")), status, at);
     }
 
     private static MovieWrite create(Movie movie, String key, String hash) {
@@ -143,7 +144,7 @@ class MongoMovieRepositoryTest {
     void anUpdateReplacesTheMovieAndKeepsOneRecordOfIt() {
         Movie movie = movie("Synthetic Movie", PublicationStatus.DRAFT, NOW);
         repository.save(create(movie, "synthetic-key-0001", HASH));
-        Movie changed = movie.change(new MovieChanges("New title", null, null, null, null, null, null, null,
+        Movie changed = movie.change(new MovieChanges("New title", null, null, null, null, null, null, null, null,
                 PublicationStatus.PUBLISHED), NOW.plusSeconds(60));
 
         repository.save(new MovieWrite(changed, WriteOperation.UPDATE_MOVIE, "synthetic-key-0002", OTHER_HASH));

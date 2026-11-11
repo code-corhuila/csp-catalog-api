@@ -16,10 +16,11 @@ public record UpdateMovieRequest(
         List<String> genres,
         List<String> cast,
         URI posterUrl,
+        URI trailerUrl,
         PublicationStatus status) {
 
     MovieChanges changes() {
         return new MovieChanges(title, synopsis, durationMinutes, classification, releaseDate, genres, cast,
-                posterUrl, status);
+                posterUrl, trailerUrl, status);
     }
 }

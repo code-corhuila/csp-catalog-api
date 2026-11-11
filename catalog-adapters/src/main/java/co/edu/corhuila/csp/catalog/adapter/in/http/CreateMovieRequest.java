@@ -20,13 +20,15 @@ public record CreateMovieRequest(
         List<String> genres,
         List<String> cast,
         URI posterUrl,
+        URI trailerUrl,
         PublicationStatus status) {
 
     MovieDetails details() {
         if (durationMinutes == null) {
             throw new InvalidMovieException("the duration is required");
         }
-        return new MovieDetails(title, synopsis, durationMinutes, classification, releaseDate, genres, cast, posterUrl);
+        return new MovieDetails(title, synopsis, durationMinutes, classification, releaseDate, genres, cast, posterUrl,
+                trailerUrl);
     }
 
     PublicationStatus requiredStatus() {

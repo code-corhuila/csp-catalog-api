@@ -14,5 +14,6 @@ public record BillboardMovie(
         List<String> genres,
         String classification,
         URI posterUrl,
+        URI trailerUrl,
         LocalDate releaseDate) {
 }
