@@ -24,12 +24,13 @@ public record MovieResponse(
         List<String> genres,
         List<String> cast,
         URI posterUrl,
+        URI trailerUrl,
         String status) {
 
     static MovieResponse of(Movie movie) {
         MovieDetails details = movie.details();
         return new MovieResponse(movie.id(), details.title(), details.synopsis(), details.durationMinutes(),
                 details.classification(), details.releaseDate(), details.genres(), details.cast(),
-                details.posterUrl(), movie.status().name());
+                details.posterUrl(), details.trailerUrl(), movie.status().name());
     }
 }

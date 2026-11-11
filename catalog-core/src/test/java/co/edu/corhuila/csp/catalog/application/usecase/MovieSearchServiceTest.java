@@ -47,7 +47,7 @@ class MovieSearchServiceTest {
     }
 
     private static BillboardMovie movie() {
-        return new BillboardMovie(MOVIE_ID, "Synthetic Movie", null, 120, List.of(), "PG-13", null, null);
+        return new BillboardMovie(MOVIE_ID, "Synthetic Movie", null, 120, List.of(), "PG-13", null, null, null);
     }
 
     private static final class FakeReader implements MovieSearchReader {

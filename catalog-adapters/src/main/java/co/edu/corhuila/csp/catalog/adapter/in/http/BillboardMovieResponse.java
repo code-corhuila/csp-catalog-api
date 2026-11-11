@@ -20,11 +20,13 @@ public record BillboardMovieResponse(
         List<String> genres,
         String classification,
         String posterUrl,
+        String trailerUrl,
         LocalDate releaseDate) {
 
     static BillboardMovieResponse of(BillboardMovie movie) {
         return new BillboardMovieResponse(movie.id(), movie.title(), movie.synopsis(), movie.durationMinutes(),
                 movie.genres(), movie.classification(),
-                movie.posterUrl() == null ? null : movie.posterUrl().toString(), movie.releaseDate());
+                movie.posterUrl() == null ? null : movie.posterUrl().toString(),
+                movie.trailerUrl() == null ? null : movie.trailerUrl().toString(), movie.releaseDate());
     }
 }

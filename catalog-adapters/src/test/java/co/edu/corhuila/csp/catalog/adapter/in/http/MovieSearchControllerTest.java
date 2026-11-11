@@ -44,11 +44,11 @@ class MovieSearchControllerTest {
 
     private static BillboardMovie movie() {
         return new BillboardMovie(MOVIE, "Synthetic Movie", "A synopsis", 120, List.of("Drama", "Comedy"), "PG-13",
-                URI.create("https://example.com/poster.png"), LocalDate.parse("2026-12-01"));
+                URI.create("https://example.com/poster.png"), URI.create("https://example.com/trailer"), LocalDate.parse("2026-12-01"));
     }
 
     private static BillboardMovie bareMovie() {
-        return new BillboardMovie(MOVIE, "Synthetic Movie", null, 120, null, "PG-13", null, null);
+        return new BillboardMovie(MOVIE, "Synthetic Movie", null, 120, null, "PG-13", null, null, null);
     }
 
     private void searchFinds(BillboardMovie... movies) {
@@ -81,6 +81,7 @@ class MovieSearchControllerTest {
                 .andExpect(jsonPath("$.data[0].genres[1]").value("Comedy"))
                 .andExpect(jsonPath("$.data[0].classification").value("PG-13"))
                 .andExpect(jsonPath("$.data[0].posterUrl").value("https://example.com/poster.png"))
+                .andExpect(jsonPath("$.data[0].trailerUrl").value("https://example.com/trailer"))
                 .andExpect(jsonPath("$.data[0].releaseDate").value("2026-12-01"));
     }
 
@@ -106,6 +107,7 @@ class MovieSearchControllerTest {
                 .andExpect(jsonPath("$.data[0].synopsis").doesNotExist())
                 .andExpect(jsonPath("$.data[0].genres").doesNotExist())
                 .andExpect(jsonPath("$.data[0].posterUrl").doesNotExist())
+                .andExpect(jsonPath("$.data[0].trailerUrl").doesNotExist())
                 .andExpect(jsonPath("$.data[0].releaseDate").doesNotExist());
     }
 
