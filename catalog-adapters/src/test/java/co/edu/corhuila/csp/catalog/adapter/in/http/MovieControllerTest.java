@@ -51,7 +51,7 @@ class MovieControllerTest {
     private static final String CREATE = """
             {"title":"Synthetic Movie","synopsis":"A synopsis","durationMinutes":120,"classification":"PG-13",
              "releaseDate":"2026-12-01","genres":["Drama"],"cast":["Synthetic Actor"],
-             "posterUrl":"https://example.com/poster.png","status":"DRAFT"}""";
+             "posterUrl":"https://example.com/poster.png","trailerUrl":"https://example.com/trailer","status":"DRAFT"}""";
 
     private final MovieUseCases useCases = mock(MovieUseCases.class);
     private final MockMvc mvc = MockMvcBuilders.standaloneSetup(new MovieController(useCases))
@@ -65,7 +65,8 @@ class MovieControllerTest {
     private static Movie movie(PublicationStatus status) {
         return Movie.create(ID, new MovieDetails("Synthetic Movie", "A synopsis", 120, "PG-13",
                 LocalDate.of(2026, 12, 1), List.of("Drama"), List.of("Synthetic Actor"),
-                URI.create("https://example.com/poster.png")), PublicationStatus.DRAFT, NOW).withStatus(status, NOW);
+                URI.create("https://example.com/poster.png"),
+                URI.create("https://example.com/trailer")), PublicationStatus.DRAFT, NOW).withStatus(status, NOW);
     }
 
     @Test
@@ -84,6 +85,7 @@ class MovieControllerTest {
                 .andExpect(jsonPath("$.genres[0]").value("Drama"))
                 .andExpect(jsonPath("$.cast[0]").value("Synthetic Actor"))
                 .andExpect(jsonPath("$.posterUrl").value("https://example.com/poster.png"))
+                .andExpect(jsonPath("$.trailerUrl").value("https://example.com/trailer"))
                 .andExpect(jsonPath("$.status").value("DRAFT"));
     }
 
@@ -101,11 +103,12 @@ class MovieControllerTest {
         assertEquals("Synthetic Movie", input.getValue().details().title());
         assertEquals(120, input.getValue().details().durationMinutes());
         assertEquals(LocalDate.of(2026, 12, 1), input.getValue().details().releaseDate());
+        assertEquals(URI.create("https://example.com/trailer"), input.getValue().details().trailerUrl());
     }
 
     @Test
     void aMovieWithoutOptionalFieldsIsAnsweredWithoutNullsBecauseTheContractDoesNotAllowThem() throws Exception {
-        Movie minimal = Movie.create(ID, new MovieDetails("Synthetic Movie", null, 90, "G", null, null, null, null),
+        Movie minimal = Movie.create(ID, new MovieDetails("Synthetic Movie", null, 90, "G", null, null, null, null, null),
                 PublicationStatus.DRAFT, NOW);
         when(useCases.getMovie(ID)).thenReturn(minimal);
 
@@ -114,6 +117,7 @@ class MovieControllerTest {
                 .andExpect(jsonPath("$.synopsis").doesNotExist())
                 .andExpect(jsonPath("$.releaseDate").doesNotExist())
                 .andExpect(jsonPath("$.posterUrl").doesNotExist())
+                .andExpect(jsonPath("$.trailerUrl").doesNotExist())
                 .andExpect(jsonPath("$.genres").isEmpty())
                 .andExpect(jsonPath("$.cast").isEmpty());
     }
@@ -125,6 +129,17 @@ class MovieControllerTest {
                 .andExpect(status().isBadRequest())
                 .andExpect(jsonPath("$.error").value("VALIDATION_ERROR"))
                 .andExpect(jsonPath("$.message").value("the duration must be at least one minute"));
+
+        verifyNoInteractions(useCases);
+    }
+
+    @Test
+    void aTrailerThatIsNotAnHttpAddressIsA400AndTheUseCaseIsNeverCalled() throws Exception {
+        mvc.perform(post("/movies").header("Idempotency-Key", KEY).contentType(MediaType.APPLICATION_JSON)
+                .content(CREATE.replace("https://example.com/trailer", "ftp://example.com/trailer")))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.error").value("VALIDATION_ERROR"))
+                .andExpect(jsonPath("$.message").value("the trailer must be an absolute http or https address of at most 2048 characters"));
 
         verifyNoInteractions(useCases);
     }
@@ -252,6 +267,21 @@ class MovieControllerTest {
         assertEquals(PublicationStatus.PUBLISHED, input.getValue().changes().status());
         assertNull(input.getValue().changes().durationMinutes());
         assertNull(input.getValue().changes().synopsis());
+        assertNull(input.getValue().changes().trailerUrl());
+    }
+
+    @Test
+    void anUpdateHandsTheTrailerThatWasSentToTheUseCase() throws Exception {
+        when(useCases.updateMovie(any())).thenReturn(movie(PublicationStatus.DRAFT));
+
+        mvc.perform(patch("/movies/" + ID).header("Idempotency-Key", KEY).contentType(MediaType.APPLICATION_JSON)
+                .content("{\"trailerUrl\":\"https://example.com/new-trailer\"}"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.trailerUrl").value("https://example.com/trailer"));
+
+        ArgumentCaptor<UpdateMovieInput> input = ArgumentCaptor.forClass(UpdateMovieInput.class);
+        verify(useCases).updateMovie(input.capture());
+        assertEquals(URI.create("https://example.com/new-trailer"), input.getValue().changes().trailerUrl());
     }
 
     @Test

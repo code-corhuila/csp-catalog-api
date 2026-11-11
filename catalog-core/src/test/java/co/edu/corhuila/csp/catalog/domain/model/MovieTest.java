@@ -25,7 +25,7 @@ class MovieTest {
     private static final Instant LATER = NOW.plusSeconds(60);
 
     private static MovieDetails details() {
-        return new MovieDetails("Synthetic Movie", null, 120, "PG-13", null, null, null, null);
+        return new MovieDetails("Synthetic Movie", null, 120, "PG-13", null, null, null, null, null);
     }
 
     private static Movie movieIn(PublicationStatus status) {
@@ -60,26 +60,26 @@ class MovieTest {
     @CsvSource({"0", "-1", "-120"})
     void aDurationOfZeroOrLessIsRejected(int minutes) {
         assertThrows(InvalidMovieException.class,
-                () -> new MovieDetails("Synthetic Movie", null, minutes, "PG-13", null, null, null, null));
+                () -> new MovieDetails("Synthetic Movie", null, minutes, "PG-13", null, null, null, null, null));
     }
 
     @Test
     void theTitleIsRequiredAndAtMost255Characters() {
         assertThrows(InvalidMovieException.class,
-                () -> new MovieDetails(null, null, 120, "PG-13", null, null, null, null));
+                () -> new MovieDetails(null, null, 120, "PG-13", null, null, null, null, null));
         assertThrows(InvalidMovieException.class,
-                () -> new MovieDetails("  ", null, 120, "PG-13", null, null, null, null));
+                () -> new MovieDetails("  ", null, 120, "PG-13", null, null, null, null, null));
         assertThrows(InvalidMovieException.class,
-                () -> new MovieDetails("x".repeat(256), null, 120, "PG-13", null, null, null, null));
-        assertEquals(255, new MovieDetails("x".repeat(255), null, 120, "PG-13", null, null, null, null).title().length());
+                () -> new MovieDetails("x".repeat(256), null, 120, "PG-13", null, null, null, null, null));
+        assertEquals(255, new MovieDetails("x".repeat(255), null, 120, "PG-13", null, null, null, null, null).title().length());
     }
 
     @Test
     void theClassificationIsRequired() {
         assertThrows(InvalidMovieException.class,
-                () -> new MovieDetails("Synthetic Movie", null, 120, null, null, null, null, null));
+                () -> new MovieDetails("Synthetic Movie", null, 120, null, null, null, null, null, null));
         assertThrows(InvalidMovieException.class,
-                () -> new MovieDetails("Synthetic Movie", null, 120, " ", null, null, null, null));
+                () -> new MovieDetails("Synthetic Movie", null, 120, " ", null, null, null, null, null));
     }
 
     @Test
@@ -88,29 +88,66 @@ class MovieTest {
         List<String> fiftyOne = IntStream.rangeClosed(1, 51).mapToObj(i -> "Actor " + i).toList();
 
         assertThrows(InvalidMovieException.class,
-                () -> new MovieDetails("Synthetic Movie", null, 120, "PG-13", null, twentyOne, null, null));
+                () -> new MovieDetails("Synthetic Movie", null, 120, "PG-13", null, twentyOne, null, null, null));
         assertThrows(InvalidMovieException.class,
-                () -> new MovieDetails("Synthetic Movie", null, 120, "PG-13", null, null, fiftyOne, null));
+                () -> new MovieDetails("Synthetic Movie", null, 120, "PG-13", null, null, fiftyOne, null, null));
         assertEquals(20, new MovieDetails("Synthetic Movie", null, 120, "PG-13", null,
-                twentyOne.subList(0, 20), null, null).genres().size());
+                twentyOne.subList(0, 20), null, null, null).genres().size());
     }
 
     @Test
     void aGenreOrCastMemberCannotBeBlank() {
         assertThrows(InvalidMovieException.class,
-                () -> new MovieDetails("Synthetic Movie", null, 120, "PG-13", null, List.of("Drama", " "), null, null));
+                () -> new MovieDetails("Synthetic Movie", null, 120, "PG-13", null, List.of("Drama", " "), null, null, null));
         assertThrows(InvalidMovieException.class,
-                () -> new MovieDetails("Synthetic Movie", null, 120, "PG-13", null, null, List.of(""), null));
+                () -> new MovieDetails("Synthetic Movie", null, 120, "PG-13", null, null, List.of(""), null, null));
+    }
+
+    private static MovieDetails withTrailer(URI trailer) {
+        return new MovieDetails("Synthetic Movie", null, 120, "PG-13", null, null, null, null, trailer);
+    }
+
+    @Test
+    void theTrailerIsOptionalAndMustBeAnAbsoluteHttpAddressOfAtMost2048Characters() {
+        assertNull(details().trailerUrl());
+        assertThrows(InvalidMovieException.class, () -> withTrailer(URI.create("trailer.mp4")));
+        assertThrows(InvalidMovieException.class, () -> withTrailer(URI.create("ftp://example.com/trailer.mp4")));
+        assertThrows(InvalidMovieException.class,
+                () -> withTrailer(URI.create("https://example.com/" + "x".repeat(2029))));
+        assertEquals(2048, withTrailer(URI.create("https://example.com/" + "x".repeat(2028))).trailerUrl().toString().length());
+        assertEquals(URI.create("https://example.com/trailer"),
+                withTrailer(URI.create("https://example.com/trailer")).trailerUrl());
+    }
+
+    @Test
+    void aChangeSetsTheTrailerAndAChangeWithoutItKeepsIt() {
+        Movie movie = Movie.create(ID, details(), PublicationStatus.DRAFT, NOW);
+        URI trailer = URI.create("https://example.com/trailer");
+
+        Movie withTrailer = movie.change(new MovieChanges(null, null, null, null, null, null, null, null, trailer, null), LATER);
+        Movie renamed = withTrailer.change(new MovieChanges("New title", null, null, null, null, null, null, null, null, null), LATER);
+
+        assertEquals(trailer, withTrailer.details().trailerUrl());
+        assertEquals(trailer, renamed.details().trailerUrl());
+    }
+
+    @Test
+    void aChangeWithAnInvalidTrailerIsRejectedAndTheMovieStaysAsItWas() {
+        Movie movie = Movie.create(ID, details(), PublicationStatus.DRAFT, NOW);
+
+        assertThrows(InvalidMovieException.class, () -> movie.change(new MovieChanges(null, null, null, null, null,
+                null, null, null, URI.create("ftp://example.com/trailer"), null), LATER));
+        assertNull(movie.details().trailerUrl());
     }
 
     @Test
     void thePosterMustBeAnAbsoluteHttpAddress() {
         assertThrows(InvalidMovieException.class, () -> new MovieDetails("Synthetic Movie", null, 120, "PG-13", null,
-                null, null, URI.create("poster.png")));
+                null, null, URI.create("poster.png"), null));
         assertThrows(InvalidMovieException.class, () -> new MovieDetails("Synthetic Movie", null, 120, "PG-13", null,
-                null, null, URI.create("ftp://example.com/poster.png")));
+                null, null, URI.create("ftp://example.com/poster.png"), null));
         assertEquals(URI.create("https://example.com/poster.png"), new MovieDetails("Synthetic Movie", null, 120,
-                "PG-13", LocalDate.of(2026, 12, 1), null, null, URI.create("https://example.com/poster.png")).posterUrl());
+                "PG-13", LocalDate.of(2026, 12, 1), null, null, URI.create("https://example.com/poster.png"), null).posterUrl());
     }
 
     @Test
@@ -167,14 +204,14 @@ class MovieTest {
         assertThrows(InvalidStatusTransitionException.class, () -> archived.archive(LATER));
         assertThrows(InvalidStatusTransitionException.class, () -> archived.withStatus(PublicationStatus.PUBLISHED, LATER));
         assertThrows(InvalidStatusTransitionException.class,
-                () -> archived.change(new MovieChanges("New title", null, null, null, null, null, null, null, null), LATER));
+                () -> archived.change(new MovieChanges("New title", null, null, null, null, null, null, null, null, null), LATER));
     }
 
     @Test
     void aPartialChangeKeepsWhatIsNotSentAndMovesTheModificationDate() {
         Movie movie = Movie.create(ID, details(), PublicationStatus.DRAFT, NOW);
 
-        Movie changed = movie.change(new MovieChanges("New title", "A synopsis", null, null, null, null, null, null,
+        Movie changed = movie.change(new MovieChanges("New title", "A synopsis", null, null, null, null, null, null, null,
                 PublicationStatus.PUBLISHED), LATER);
 
         assertEquals("New title", changed.details().title());
@@ -190,7 +227,7 @@ class MovieTest {
         Movie movie = Movie.create(ID, details(), PublicationStatus.DRAFT, NOW);
 
         assertThrows(InvalidMovieException.class,
-                () -> movie.change(new MovieChanges(null, null, 0, null, null, null, null, null, null), LATER));
+                () -> movie.change(new MovieChanges(null, null, 0, null, null, null, null, null, null, null), LATER));
         assertEquals(120, movie.details().durationMinutes());
         assertEquals(NOW, movie.updatedAt());
     }

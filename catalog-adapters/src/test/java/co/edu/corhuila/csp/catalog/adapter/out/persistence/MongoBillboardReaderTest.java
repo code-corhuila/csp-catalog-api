@@ -79,7 +79,8 @@ class MongoBillboardReaderTest {
     private static Movie storedMovie(String title, PublicationStatus status) {
         Movie created = Movie.create(UUID.randomUUID(), new MovieDetails(title, "A synthetic synopsis.", 120, "PG-13",
                 LocalDate.parse("2026-09-01"), List.of("Drama", "Comedy"), List.of("Synthetic Actor"),
-                URI.create("https://example.com/poster.png")), PublicationStatus.DRAFT, NOW);
+                URI.create("https://example.com/poster.png"),
+                URI.create("https://example.com/trailer")), PublicationStatus.DRAFT, NOW);
         Movie stored = status == PublicationStatus.DRAFT ? created : created.withStatus(status, NOW);
         template.insert(MovieDocumentMapper.toDocument(stored), "movies");
         return stored;
@@ -139,7 +140,7 @@ class MongoBillboardReaderTest {
         assertEquals(100, page.limit());
         BillboardEntry entry = page.items().get(0);
         assertEquals(new BillboardMovie(movie.id(), "Synthetic Movie", "A synthetic synopsis.", 120,
-                List.of("Drama", "Comedy"), "PG-13", URI.create("https://example.com/poster.png"),
+                List.of("Drama", "Comedy"), "PG-13", URI.create("https://example.com/poster.png"), URI.create("https://example.com/trailer"),
                 LocalDate.parse("2026-09-01")), entry.movie());
         assertEquals(new BillboardRoom(room.id(), "Synthetic Room", 2), entry.room());
         assertEquals(new BillboardShowtime(showtime.id(), EVENING, EVENING.plusSeconds(7200), 15000, "EN", "ES"),

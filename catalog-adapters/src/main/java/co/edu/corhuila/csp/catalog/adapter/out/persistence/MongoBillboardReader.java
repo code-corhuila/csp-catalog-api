@@ -99,7 +99,8 @@ public class MongoBillboardReader implements BillboardReader {
     static BillboardMovie toPublicMovie(Movie movie) {
         MovieDetails details = movie.details();
         return new BillboardMovie(movie.id(), details.title(), details.synopsis(), details.durationMinutes(),
-                details.genres(), details.classification(), details.posterUrl(), details.releaseDate());
+                details.genres(), details.classification(), details.posterUrl(), details.trailerUrl(),
+                details.releaseDate());
     }
 
     /** A {@code $lookup} on a unique id yields an array of exactly one document once the match has kept it. */
