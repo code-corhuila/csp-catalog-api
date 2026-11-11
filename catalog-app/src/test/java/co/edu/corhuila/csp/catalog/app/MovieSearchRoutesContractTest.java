@@ -28,7 +28,7 @@ class MovieSearchRoutesContractTest extends ContractTest {
     private static final String MOVIE = """
             {"title":"%s","synopsis":"%s","durationMinutes":%d,"classification":"PG-13",
              "releaseDate":"2026-12-01","genres":[%s],"cast":["Synthetic Actor"],
-             "posterUrl":"https://example.com/poster.png","status":"%s"}""";
+             "posterUrl":"https://example.com/poster.png","trailerUrl":"https://example.com/trailer","status":"%s"}""";
 
     private String movie(String title, String synopsis, int minutes, String genres, String status) throws Exception {
         String body = MOVIE.formatted(title, synopsis, minutes, genres, status);
@@ -68,6 +68,7 @@ class MovieSearchRoutesContractTest extends ContractTest {
         assertEquals("PG-13", item.get("classification").asText());
         assertEquals("Drama", item.get("genres").get(0).asText());
         assertEquals("https://example.com/poster.png", item.get("posterUrl").asText());
+        assertEquals("https://example.com/trailer", item.get("trailerUrl").asText());
         assertEquals("2026-12-01", item.get("releaseDate").asText());
         assertFalse(item.has("status"));
         assertFalse(item.has("cast"));

@@ -24,7 +24,7 @@ class MovieRoutesContractTest extends ContractTest {
     private static final String CREATE = """
             {"title":"Synthetic Movie","synopsis":"A synopsis","durationMinutes":120,"classification":"PG-13",
              "releaseDate":"2026-12-01","genres":["Drama"],"cast":["Synthetic Actor"],
-             "posterUrl":"https://example.com/poster.png","status":"DRAFT"}""";
+             "posterUrl":"https://example.com/poster.png","trailerUrl":"https://example.com/trailer","status":"DRAFT"}""";
 
     private static MockHttpServletRequestBuilder admin(MockHttpServletRequestBuilder request) {
         return authorized(request, List.of("catalog:read", "catalog:write"));
@@ -42,6 +42,7 @@ class MovieRoutesContractTest extends ContractTest {
         String id = body(created).get("id").asText();
         assertEquals("/api/v1/catalog/movies/" + id, created.getResponse().getHeader("Location"));
         assertEquals("DRAFT", body(created).get("status").asText());
+        assertEquals("https://example.com/trailer", body(created).get("trailerUrl").asText());
 
         assertEquals(id, body(call(admin(get(BASE + "/movies/" + id)), 200)).get("id").asText());
         JsonNode list = body(call(admin(get(BASE + "/movies?page=1&limit=20")), 200));
@@ -50,11 +51,12 @@ class MovieRoutesContractTest extends ContractTest {
         assertEquals(id, list.get("data").get(0).get("id").asText());
 
         String publishKey = key();
-        String publish = "{\"title\":\"New title\",\"status\":\"PUBLISHED\"}";
+        String publish = "{\"title\":\"New title\",\"trailerUrl\":\"https://example.com/new-trailer\",\"status\":\"PUBLISHED\"}";
         JsonNode published = body(call(admin(patch(BASE + "/movies/" + id)).header("Idempotency-Key", publishKey)
                 .contentType(MediaType.APPLICATION_JSON).content(publish), 200));
         assertEquals("PUBLISHED", published.get("status").asText());
         assertEquals("New title", published.get("title").asText());
+        assertEquals("https://example.com/new-trailer", published.get("trailerUrl").asText());
 
         assertEquals(id, body(call(create(creationKey, CREATE), 201)).get("id").asText());
         assertEquals(1, body(call(admin(get(BASE + "/movies")), 200)).get("meta").get("total").asInt());
@@ -71,6 +73,7 @@ class MovieRoutesContractTest extends ContractTest {
     @Test
     void everyErrorAnswerMatchesTheContract() throws Exception {
         callWithInvalidRequest(create(key(), CREATE.replace("\"durationMinutes\":120", "\"durationMinutes\":0")), 400);
+        callWithInvalidRequest(create(key(), CREATE.replace("https://example.com/trailer", "ftp://example.com/trailer")), 400);
         callWithInvalidRequest(admin(get(BASE + "/movies?limit=101")), 400);
         call(admin(get(BASE + "/movies/" + UUID.randomUUID())), 404);
 
