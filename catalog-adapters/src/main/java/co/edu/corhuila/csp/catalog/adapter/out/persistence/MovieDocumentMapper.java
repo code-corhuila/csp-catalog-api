@@ -32,6 +32,7 @@ final class MovieDocumentMapper {
                 .append("genres", details.genres())
                 .append("cast", details.cast())
                 .append("poster_url", details.posterUrl() == null ? null : details.posterUrl().toString())
+                .append("trailer_url", details.trailerUrl() == null ? null : details.trailerUrl().toString())
                 .append("publication_status", movie.status().name())
                 .append("created_at", Date.from(movie.createdAt()))
                 .append("updated_at", Date.from(movie.updatedAt()))
@@ -41,6 +42,7 @@ final class MovieDocumentMapper {
     static Movie toMovie(Document document) {
         Date releaseDate = document.getDate("release_date");
         String posterUrl = document.getString("poster_url");
+        String trailerUrl = document.getString("trailer_url");
         MovieDetails details = new MovieDetails(
                 document.getString("title"),
                 document.getString("synopsis"),
@@ -49,7 +51,8 @@ final class MovieDocumentMapper {
                 releaseDate == null ? null : releaseDate.toInstant().atZone(ZoneOffset.UTC).toLocalDate(),
                 document.getList("genres", String.class),
                 document.getList("cast", String.class),
-                posterUrl == null ? null : URI.create(posterUrl));
+                posterUrl == null ? null : URI.create(posterUrl),
+                trailerUrl == null ? null : URI.create(trailerUrl));
         return new Movie(
                 UUID.fromString(document.getString("_id")),
                 details,

@@ -55,7 +55,7 @@ class AvailabilityServiceTest {
     }
 
     private static Movie movie(String title, PublicationStatus status) {
-        MovieDetails details = new MovieDetails(title, null, 120, "PG-13", null, null, null, null);
+        MovieDetails details = new MovieDetails(title, null, 120, "PG-13", null, null, null, null, null);
         return Movie.create(MOVIE_ID, details,
                 status == PublicationStatus.ARCHIVED ? PublicationStatus.DRAFT : status, NOW).withStatus(status, NOW);
     }
